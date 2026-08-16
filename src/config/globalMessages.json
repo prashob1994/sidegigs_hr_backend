@@ -1,0 +1,38 @@
+{
+  "welcome": "Welcome to SidGigs HR API!",
+  "error": "An error has occurred.",
+  "notFound": "The requested resource could not be found.",
+
+  "fileUploadError": "Failed to upload file. Please try again.",
+  "fileDeleteError": "Failed to delete file.",
+  "fileDeleteSuccess": "Successfully deleted file.",
+
+  "anyRequired": "Please enter",
+  "anyCustom": "Custom validation failed",
+  "anyDefault": "Threw an error when running default method",
+  "anyOnly": "Invalid entry",
+
+  "stringBase": "Please enter",
+  "stringEmpty": "Please enter",
+  "stringEmail": "Please enter in the format: name@example.com",
+  "stringIsoDate": "Please enter a valid",
+  "stringLowercase": "must only contain lowercase characters",
+  "stringUri": "must be a valid uri",
+  "stringUppercase": "must only contain uppercase characters",
+
+  "numberEmpty": "Please enter valid",
+  "numberBase": "Please enter",
+  "numberInteger": "must be an integer",
+
+  "validFieldError": "Please select a valid",
+
+  "redisConnectionError": "Failed to connect to redis",
+
+  "noFiles": "No files found",
+
+  "passWordLengthError": "Use at least 8 characters",
+  "passwordAtleastOneNumberError": "Use at least 1 number",
+  "passwordAtleastOneUpperCaseError": "Use at least 1 uppercase letter",
+  "passwordAtleastOneSpecialCharacterError": "Use at least 1 special character",
+  "passwordAtleastOneLowerCaseError": "Use at least 1 lowercase character"
+}
