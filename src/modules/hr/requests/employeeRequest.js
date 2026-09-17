@@ -11,6 +11,9 @@ export const createEmployeeSchema = Joi.object({
   designation: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Designation"),
   salary: Joi.number().optional().messages(joiCustomMessages).label("Salary"),
   status: Joi.string().valid("active", "inactive", "on_leave", "terminated").optional().messages(joiCustomMessages).label("Status"),
+  reportsTo: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Reports To Manager ID"),
+  workplaceType: Joi.string().valid("On-Site", "Remote", "Hybrid").optional().messages(joiCustomMessages).label("Workplace Type"),
+  avatar: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Avatar"),
 });
 
 export const validateCreateEmployee = (req, res, next) => {

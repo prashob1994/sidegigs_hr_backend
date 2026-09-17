@@ -2,12 +2,26 @@ import leaveRepository from "../repositories/leaveRepository.js";
 import Employee from "../../hr/models/employeeModel.js";
 
 /**
+ * Helper to calculate relative time string (e.g., "Applied 2 hours ago")
+ */
+const getAppliedAgoText = (createdAt) => {
+  if (!createdAt) return "Applied recently";
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffHours < 1) return "Applied just now";
+  if (diffHours < 24) return `Applied ${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Applied Yesterday";
+  return `Applied ${diffDays} days ago`;
+};
+
+/**
  * Apply for leave under specified organisation
  */
 export const applyLeave = async (req, res) => {
   try {
     const organisation = req.params.organisation;
-    const { employeeId, employeeName, leaveType, startDate, endDate, reason } = req.body;
+    const { employeeId, employeeName, leaveType, leaveTitle, startDate, endDate, reason, urgency } = req.body;
 
     if (!startDate || !endDate || !reason) {
       return res.status(422).json({
@@ -37,10 +51,12 @@ export const applyLeave = async (req, res) => {
       employeeName: empName || "Employee",
       organisation,
       leaveType: leaveType || "casual",
+      leaveTitle: leaveTitle || (leaveType ? `${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)} Leave` : "Casual Leave"),
       startDate: start,
       endDate: end,
       totalDays: totalDays || 1,
       reason,
+      urgency: urgency || false,
       status: "pending",
     });
 
@@ -118,7 +134,142 @@ export const listLeaves = async (req, res) => {
 };
 
 /**
- * Change leave status (approve/reject)
+ * Formatted Time-Off Request Cards for Mobile Approvals Screen
+ */
+export const getApprovalsList = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { status = "pending" } = req.body;
+
+    const filter = {};
+    if (status && status !== "all") {
+      filter.status = status.toLowerCase();
+    }
+
+    const leaves = await leaveRepository.findByOrganisation(organisation, filter);
+    const employeeIds = leaves.map((l) => l.employeeId).filter(Boolean);
+    const employees = await Employee.find({ _id: { $in: employeeIds } });
+    const empMap = new Map(employees.map((e) => [e._id.toString(), e]));
+
+    const formattedCards = leaves.map((leave) => {
+      const emp = empMap.get(leave.employeeId?.toString());
+      const initials = leave.employeeName
+        ? leave.employeeName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+        : "AS";
+
+      const startStr = new Date(leave.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+      const endStr = new Date(leave.endDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+
+      return {
+        id: leave._id,
+        employeeName: leave.employeeName,
+        initials,
+        department: emp?.department || "Engineering",
+        appliedAgo: getAppliedAgoText(leave.createdAt),
+        status: (leave.status || "pending").toUpperCase(),
+        leaveTitle: leave.leaveTitle || "Leave Application",
+        dateRange: `${startStr} to ${endStr}`,
+        totalDays: `${leave.totalDays || 1} Day(s)`,
+        reason: leave.reason,
+      };
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: "Time-off approval cards fetched successfully",
+      data: {
+        pendingCount: formattedCards.filter((c) => c.status === "PENDING").length,
+        totalCards: formattedCards.length,
+        requests: formattedCards,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to fetch approvals list",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Approve leave application
+ */
+export const approveLeave = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { id } = req.body;
+
+    const leave = await leaveRepository.findById(id);
+    if (!leave || leave.organisation !== organisation) {
+      return res.status(404).json({
+        status: false,
+        message: "Leave application not found in this organisation",
+      });
+    }
+
+    const updated = await leaveRepository.updateStatus(
+      id,
+      "approved",
+      req.user?.name || req.user?.email || "HR Admin"
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Leave application approved successfully",
+      data: updated,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to approve leave application",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Reject leave application
+ */
+export const rejectLeave = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { id, rejectionReason } = req.body;
+
+    const leave = await leaveRepository.findById(id);
+    if (!leave || leave.organisation !== organisation) {
+      return res.status(404).json({
+        status: false,
+        message: "Leave application not found in this organisation",
+      });
+    }
+
+    if (rejectionReason) {
+      leave.rejectionReason = rejectionReason;
+    }
+
+    const updated = await leaveRepository.updateStatus(
+      id,
+      "rejected",
+      req.user?.name || req.user?.email || "HR Admin"
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Leave application rejected successfully",
+      data: updated,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to reject leave application",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Change leave status (approve/reject legacy endpoint)
  */
 export const changeLeaveStatus = async (req, res) => {
   try {

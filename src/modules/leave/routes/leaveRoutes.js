@@ -4,12 +4,14 @@ import {
   myLeaves,
   listLeaves,
   changeLeaveStatus,
+  getApprovalsList,
+  approveLeave,
+  rejectLeave,
 } from "../controllers/leaveController.js";
+import { validateLeaveAction } from "../requests/leaveRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
 
 const leaveRouter = express.Router({ mergeParams: true });
-
-// Apply authentication to leave routes
 leaveRouter.use(authenticateUser);
 
 /**
@@ -35,21 +37,32 @@ leaveRouter.use(authenticateUser);
  *             type: object
  *             required: [startDate, endDate, reason]
  *             properties:
+ *               employeeId:
+ *                 type: string
  *               leaveType:
  *                 type: string
- *                 example: "casual"
+ *                 enum: [sick, casual, annual, unpaid]
+ *                 example: "annual"
+ *               leaveTitle:
+ *                 type: string
+ *                 example: "Annual Vacation"
  *               startDate:
  *                 type: string
- *                 example: "2026-09-01"
+ *                 example: "2026-09-05"
  *               endDate:
  *                 type: string
- *                 example: "2026-09-03"
+ *                 example: "2026-09-08"
  *               reason:
  *                 type: string
- *                 example: "Family vacation"
+ *                 example: "Family trip to Himachal. Sprint deliverables completed."
+ *               urgency:
+ *                 type: boolean
+ *                 example: true
  *     responses:
  *       201:
  *         description: Leave application submitted successfully
+ *       422:
+ *         description: Validation error
  */
 leaveRouter.post("/apply", applyLeave);
 
@@ -67,6 +80,7 @@ leaveRouter.post("/apply", applyLeave);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: false
  *       content:
@@ -96,6 +110,7 @@ leaveRouter.post("/my-leaves", myLeaves);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: false
  *       content:
@@ -105,11 +120,116 @@ leaveRouter.post("/my-leaves", myLeaves);
  *             properties:
  *               status:
  *                 type: string
+ *                 enum: [all, pending, approved, rejected]
+ *                 example: "pending"
  *     responses:
  *       200:
  *         description: List of organisation leave requests
  */
 leaveRouter.post("/list", listLeaves);
+
+/**
+ * @swagger
+ * /api/{organisation}/leave/approvals-list:
+ *   post:
+ *     summary: Fetch formatted time-off request cards for mobile approvals screen
+ *     tags: [Leave Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [all, pending, approved, rejected]
+ *                 example: "pending"
+ *     responses:
+ *       200:
+ *         description: Formatted time-off approval cards fetched successfully
+ */
+leaveRouter.post("/approvals-list", getApprovalsList);
+
+/**
+ * @swagger
+ * /api/{organisation}/leave/approve:
+ *   post:
+ *     summary: Approve leave request
+ *     tags: [Leave Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id]
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *     responses:
+ *       200:
+ *         description: Leave application approved successfully
+ *       422:
+ *         description: Validation error
+ */
+leaveRouter.post("/approve", validateLeaveAction, approveLeave);
+
+/**
+ * @swagger
+ * /api/{organisation}/leave/reject:
+ *   post:
+ *     summary: Reject leave request
+ *     tags: [Leave Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id]
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
+ *               rejectionReason:
+ *                 type: string
+ *                 example: "Project sprint release scheduled during requested dates"
+ *     responses:
+ *       200:
+ *         description: Leave application rejected successfully
+ *       422:
+ *         description: Validation error
+ */
+leaveRouter.post("/reject", validateLeaveAction, rejectLeave);
 
 /**
  * @swagger
@@ -125,6 +245,7 @@ leaveRouter.post("/list", listLeaves);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: true
  *       content:
@@ -135,9 +256,11 @@ leaveRouter.post("/list", listLeaves);
  *             properties:
  *               id:
  *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
  *               status:
  *                 type: string
  *                 enum: [approved, rejected]
+ *                 example: "approved"
  *     responses:
  *       200:
  *         description: Leave status updated successfully

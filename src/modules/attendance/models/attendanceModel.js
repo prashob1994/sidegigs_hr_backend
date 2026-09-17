@@ -44,9 +44,27 @@ const attendanceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    locationType: {
+      type: String,
+      enum: ["Office HQ", "Remote WFH", "Client Site"],
+      default: "Office HQ",
+    },
+    shiftNotes: {
+      type: String,
+      default: null,
+    },
     totalHours: {
       type: Number,
       default: 0,
+    },
+    totalHoursText: {
+      type: String,
+      default: "0h 00m",
+    },
+    attendanceStatus: {
+      type: String,
+      enum: ["Present", "Late", "Absent", "Leave"],
+      default: "Present",
     },
     status: {
       type: String,
@@ -60,7 +78,6 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
-// Composite index for fast lookups
 attendanceSchema.index({ employeeId: 1, date: 1, organisation: 1 });
 
 const Attendance = mongoose.model("Attendance", attendanceSchema);

@@ -48,6 +48,24 @@ const employeeSchema = new mongoose.Schema(
       enum: ["active", "inactive", "on_leave", "terminated"],
       default: "active",
     },
+    reportsTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    avatar: {
+      type: String,
+      default: null,
+    },
+    workplaceType: {
+      type: String,
+      enum: ["On-Site", "Remote", "Hybrid"],
+      default: "On-Site",
+    },
+    attendanceRate: {
+      type: Number,
+      default: 95,
+    },
   },
   {
     timestamps: true,

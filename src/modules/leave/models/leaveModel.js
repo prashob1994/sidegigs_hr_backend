@@ -46,6 +46,18 @@ const leaveSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    leaveTitle: {
+      type: String,
+      default: "Leave Application",
+    },
+    rejectionReason: {
+      type: String,
+      default: null,
+    },
+    urgency: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

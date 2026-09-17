@@ -6,7 +6,7 @@ import { hashPassword } from "../utils/bcryptPassword.js";
 dotenv.config();
 
 /**
- * Seed HR account into MongoDB database
+ * Seed base HR account (No dummy sample data added)
  */
 const seedHR = async () => {
   try {
@@ -14,29 +14,23 @@ const seedHR = async () => {
     const hrPassword = "Admin123,.";
     const hrOrganisation = "sidegigs";
 
-    const existingHr = await User.findOne({ email: hrEmail });
-    if (existingHr) {
-      console.log(`ℹ️ HR account (${hrEmail}) already exists.`);
-      return;
+    let existingHr = await User.findOne({ email: hrEmail });
+    if (!existingHr) {
+      const hashedPassword = await hashPassword(hrPassword);
+      existingHr = await User.create({
+        name: "HR Admin",
+        email: hrEmail,
+        password: hashedPassword,
+        organisation: hrOrganisation,
+        role: "hr",
+        status: "active",
+      });
+      console.log(`✅ Base HR account created (${hrEmail})`);
+    } else {
+      console.log(`ℹ️ HR account (${hrEmail}) already present.`);
     }
-
-    const hashedPassword = await hashPassword(hrPassword);
-
-    const newHr = await User.create({
-      name: "HR Admin",
-      email: hrEmail,
-      password: hashedPassword,
-      organisation: hrOrganisation,
-      role: "hr",
-      status: "active",
-    });
-
-    console.log(`✅ HR account successfully seeded!`);
-    console.log(`   Email: ${newHr.email}`);
-    console.log(`   Organisation: ${newHr.organisation}`);
-    console.log(`   Role: ${newHr.role}`);
   } catch (error) {
-    console.error(`❌ Error seeding HR account: ${error.message}`);
+    console.error(`❌ Error seeding HR database: ${error.message}`);
   }
 };
 
@@ -46,7 +40,7 @@ if (process.argv[1] && process.argv[1].endsWith("databaseSeeder.js")) {
   mongoose
     .connect(mongoUri)
     .then(async () => {
-      console.log("Connected to MongoDB for seeding...");
+      console.log("Connected to MongoDB...");
       await seedHR();
       await mongoose.disconnect();
       process.exit(0);

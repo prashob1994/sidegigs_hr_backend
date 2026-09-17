@@ -6,19 +6,19 @@ import {
   getHistory,
   getAllEmployeesHistory,
   getDailyReport,
+  exportCsv,
 } from "../controllers/attendanceController.js";
+import { validateClockIn, validateExportCsv } from "../requests/attendanceRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
 
 const attendanceRouter = express.Router({ mergeParams: true });
-
-// Apply authentication to attendance endpoints
 attendanceRouter.use(authenticateUser);
 
 /**
  * @swagger
  * /api/{organisation}/attendance/clock-in:
  *   post:
- *     summary: Employee Clock In for today
+ *     summary: Employee Clock In for today with shift location & tasks
  *     tags: [Attendance]
  *     security:
  *       - bearerAuth: []
@@ -30,26 +30,28 @@ attendanceRouter.use(authenticateUser);
  *           type: string
  *         example: "sidegigs"
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [employeeId]
  *             properties:
  *               employeeId:
  *                 type: string
- *                 example: "67b0a1..."
- *               employeeName:
+ *               locationType:
  *                 type: string
- *                 example: "John Doe"
+ *                 enum: ["Office HQ", "Remote WFH", "Client Site"]
+ *                 example: "Office HQ"
+ *               shiftNotes:
+ *                 type: string
+ *                 example: "Sprint planning & HR recruitment review"
  *     responses:
  *       201:
  *         description: Clocked in successfully
  *       400:
  *         description: Already clocked in for today
  */
-attendanceRouter.post("/clock-in", clockIn);
+attendanceRouter.post("/clock-in", validateClockIn, clockIn);
 
 /**
  * @swagger
@@ -65,13 +67,13 @@ attendanceRouter.post("/clock-in", clockIn);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [employeeId]
  *             properties:
  *               employeeId:
  *                 type: string
@@ -97,13 +99,13 @@ attendanceRouter.post("/clock-out", clockOut);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [employeeId]
  *             properties:
  *               employeeId:
  *                 type: string
@@ -127,13 +129,13 @@ attendanceRouter.post("/status", getStatus);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [employeeId]
  *             properties:
  *               employeeId:
  *                 type: string
@@ -153,7 +155,7 @@ attendanceRouter.post("/history", getHistory);
  * @swagger
  * /api/{organisation}/attendance/all-history:
  *   post:
- *     summary: HR Endpoint to get all employees attendance history for organisation
+ *     summary: HR Endpoint to get all employees attendance history roster cards
  *     tags: [Attendance Report]
  *     security:
  *       - bearerAuth: []
@@ -179,13 +181,14 @@ attendanceRouter.post("/history", getHistory);
  *                 example: "2026-08-31"
  *               keyword:
  *                 type: string
- *                 description: Search by employee name
+ *                 example: "Aarav"
  *               status:
  *                 type: string
- *                 enum: [clocked_in, clocked_out]
+ *                 enum: [all, Present, Late, Absent, Leave]
+ *                 example: "all"
  *     responses:
  *       200:
- *         description: All employees attendance history logs
+ *         description: All employees attendance history roster
  */
 attendanceRouter.post("/all-history", getAllEmployeesHistory);
 attendanceRouter.post("/organisation-history", getAllEmployeesHistory);
@@ -194,7 +197,7 @@ attendanceRouter.post("/organisation-history", getAllEmployeesHistory);
  * @swagger
  * /api/{organisation}/attendance/daily-report:
  *   post:
- *     summary: Get daily attendance summary (Clocked In vs Absent / Not Clocked In)
+ *     summary: Get daily attendance report summary (Present, Absent, Late, On Leave)
  *     tags: [Attendance Report]
  *     security:
  *       - bearerAuth: []
@@ -204,6 +207,7 @@ attendanceRouter.post("/organisation-history", getAllEmployeesHistory);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: false
  *       content:
@@ -213,11 +217,48 @@ attendanceRouter.post("/organisation-history", getAllEmployeesHistory);
  *             properties:
  *               date:
  *                 type: string
- *                 example: "2026-08-16"
+ *                 example: "2026-08-31"
  *     responses:
  *       200:
- *         description: Daily attendance report
+ *         description: Daily attendance report summary
  */
 attendanceRouter.post("/daily-report", getDailyReport);
+
+/**
+ * @swagger
+ * /api/{organisation}/attendance/export-csv:
+ *   post:
+ *     summary: Export attendance roster history as CSV
+ *     tags: [Attendance Report]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 example: "2026-08-01"
+ *               endDate:
+ *                 type: string
+ *                 example: "2026-08-31"
+ *               status:
+ *                 type: string
+ *                 example: "all"
+ *     responses:
+ *       200:
+ *         description: Attendance CSV data exported successfully
+ */
+attendanceRouter.post("/export-csv", validateExportCsv, exportCsv);
 
 export default attendanceRouter;

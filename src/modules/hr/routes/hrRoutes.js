@@ -1,6 +1,7 @@
 import express from "express";
 import {
   listEmployees,
+  getOrgTree,
   addEmployee,
   getEmployee,
   updateEmployee,
@@ -10,8 +11,6 @@ import { validateCreateEmployee } from "../requests/employeeRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
 
 const employeeRouter = express.Router({ mergeParams: true });
-
-// Apply authentication to employee routes
 employeeRouter.use(authenticateUser);
 
 /**
@@ -38,19 +37,58 @@ employeeRouter.use(authenticateUser);
  *             properties:
  *               keyword:
  *                 type: string
+ *                 example: "Aarav"
+ *               department:
+ *                 type: string
+ *                 enum: [All, Engineering, Design, HR, Product]
+ *                 example: "Engineering"
  *               status:
  *                 type: string
+ *                 enum: [active, inactive, on_leave, terminated]
+ *                 example: "active"
  *     responses:
  *       200:
- *         description: Employees list returned
+ *         description: Employees list returned successfully
  */
 employeeRouter.post("/list", listEmployees);
 
 /**
  * @swagger
+ * /api/{organisation}/employees/org-tree:
+ *   post:
+ *     summary: Fetch organizational reporting tree
+ *     tags: [Employee Scoped API]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               department:
+ *                 type: string
+ *                 enum: [All, Engineering, Design, HR, Product]
+ *                 example: "All"
+ *     responses:
+ *       200:
+ *         description: Organizational hierarchy tree fetched successfully
+ */
+employeeRouter.post("/org-tree", getOrgTree);
+
+/**
+ * @swagger
  * /api/{organisation}/employees/add:
  *   post:
- *     summary: Add employee under specified organisation
+ *     summary: Add / Onboard employee under specified organisation
  *     tags: [Employee Scoped API]
  *     security:
  *       - bearerAuth: []
@@ -67,25 +105,43 @@ employeeRouter.post("/list", listEmployees);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - name
+ *             required: [name]
  *             properties:
  *               name:
  *                 type: string
- *                 example: "John Doe"
+ *                 example: "Aarav Sharma"
  *               email:
  *                 type: string
- *                 example: "john@company.com"
+ *                 example: "aarav@sidegigs.com"
  *               phone:
  *                 type: string
- *                 example: "+1234567890"
- *               department:
- *                 type: string
+ *                 example: "+919845011223"
  *               designation:
  *                 type: string
+ *                 example: "Chief Technology Officer"
+ *               department:
+ *                 type: string
+ *                 enum: [Engineering, Design, HR, Product]
+ *                 example: "Engineering"
+ *               reportsTo:
+ *                 type: string
+ *                 description: Manager Employee ID for Org Tree
+ *               workplaceType:
+ *                 type: string
+ *                 enum: [On-Site, Remote, Hybrid]
+ *                 example: "On-Site"
+ *               salary:
+ *                 type: number
+ *                 example: 150000
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, on_leave, terminated]
+ *                 example: "active"
  *     responses:
  *       201:
  *         description: Employee added successfully
+ *       422:
+ *         description: Validation error
  */
 employeeRouter.post("/add", validateCreateEmployee, addEmployee);
 
@@ -103,6 +159,7 @@ employeeRouter.post("/add", validateCreateEmployee, addEmployee);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: true
  *       content:
@@ -113,6 +170,7 @@ employeeRouter.post("/add", validateCreateEmployee, addEmployee);
  *             properties:
  *               id:
  *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
  *     responses:
  *       200:
  *         description: Employee details
@@ -133,6 +191,7 @@ employeeRouter.post("/get", getEmployee);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: true
  *       content:
@@ -143,15 +202,30 @@ employeeRouter.post("/get", getEmployee);
  *             properties:
  *               id:
  *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
  *               name:
  *                 type: string
+ *                 example: "Aarav Sharma"
  *               email:
  *                 type: string
+ *                 example: "aarav@sidegigs.com"
  *               phone:
  *                 type: string
+ *                 example: "+919845011223"
+ *               department:
+ *                 type: string
+ *                 example: "Engineering"
+ *               designation:
+ *                 type: string
+ *                 example: "Chief Technology Officer"
+ *               reportsTo:
+ *                 type: string
+ *               workplaceType:
+ *                 type: string
+ *                 enum: [On-Site, Remote, Hybrid]
  *     responses:
  *       200:
- *         description: Employee updated
+ *         description: Employee updated successfully
  */
 employeeRouter.post("/update", updateEmployee);
 
@@ -169,6 +243,7 @@ employeeRouter.post("/update", updateEmployee);
  *         required: true
  *         schema:
  *           type: string
+ *         example: "sidegigs"
  *     requestBody:
  *       required: true
  *       content:
@@ -179,9 +254,10 @@ employeeRouter.post("/update", updateEmployee);
  *             properties:
  *               id:
  *                 type: string
+ *                 example: "64f1a2b3c4d5e6f7a8b9c0d1"
  *     responses:
  *       200:
- *         description: Employee deleted
+ *         description: Employee deleted successfully
  */
 employeeRouter.post("/delete", deleteEmployee);
 
