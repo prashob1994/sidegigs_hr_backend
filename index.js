@@ -63,12 +63,23 @@ app.get("/", (req, res) => {
   });
 });
 
-// Swagger API Documentation
+// Swagger API Documentation (Configured with CDN links for Vercel serverless compatibility)
 const specs = swaggerJsdoc(swagger);
+const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css";
+const JS_URL = [
+  "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-bundle.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-standalone-preset.min.js",
+];
+
 app.use(
   "/api/documentation",
   swaggerUi.serve,
-  swaggerUi.setup(specs, { explorer: true })
+  swaggerUi.setup(specs, {
+    explorer: true,
+    customCssUrl: CSS_URL,
+    customJs: JS_URL,
+    customSiteTitle: "SidGigs HR API Documentation",
+  })
 );
 
 // Register API Routes
