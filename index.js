@@ -7,6 +7,7 @@ import morgan from "morgan";
 import session from "express-session";
 import bodyParser from "body-parser";
 import path from "path";
+import { fileURLToPath } from "url";
 
 import connectDB from "./src/config/db.js";
 import swagger from "./src/config/swagger.js";
@@ -15,8 +16,10 @@ import configureRoutes from "./src/routes/routes.js";
 // Load environment variables
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const port = process.env.PORT || 3000;
-const hostname = process.env.HOST || "localhost";
 
 const app = express();
 
@@ -26,9 +29,9 @@ app.use(cors());
 // HTTP Request Logger
 app.use(morgan(process.env.LOGGING_FORMAT || "dev"));
 
-// Set View Engine
+// Set View Engine with absolute path resolution for Vercel / Serverless tracing
 app.set("view engine", "ejs");
-app.set("views", "./src/views");
+app.set("views", path.join(__dirname, "src", "views"));
 
 // Initialize Database Connection
 connectDB();
@@ -46,9 +49,18 @@ app.use(
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Home Route
+// Home Route with graceful fallback rendering for serverless deployments
 app.get("/", (req, res) => {
-  res.render("index");
+  res.render("index", (err, html) => {
+    if (err) {
+      return res.json({
+        status: true,
+        message: "SidGigs HR Backend API Running",
+        documentation: "/api/documentation",
+      });
+    }
+    res.send(html);
+  });
 });
 
 // Swagger API Documentation
@@ -63,12 +75,12 @@ app.use(
 configureRoutes(app);
 
 // Serve Static Uploads
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use("/public", express.static(path.join(process.cwd(), "public")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/public", express.static(path.join(__dirname, "public")));
 
-app.listen(port, hostname, () => {
-  console.log(`🚀 SidGigs HR Backend server running at http://${hostname}:${port}/`);
-  console.log(`📖 Swagger API Docs available at http://${hostname}:${port}/api/documentation`);
+app.listen(port, () => {
+  console.log(`🚀 SidGigs HR Backend server running on port ${port}`);
+  console.log(`📖 Swagger API Docs available at /api/documentation`);
 });
 
 export default app;
