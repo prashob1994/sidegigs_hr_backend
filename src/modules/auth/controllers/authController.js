@@ -23,7 +23,23 @@ export const getOrganisationByEmail = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // 1. Search in Employee collection
+    // 1. Search in User (userSchema) collection first
+    const user = await User.findOne({ email: cleanEmail });
+    if (user) {
+      const org = user.organisation || user.business_name || "sidegigs";
+      return res.status(200).json({
+        status: true,
+        message: "Organisation retrieved successfully",
+        data: {
+          email: cleanEmail,
+          organisation: org,
+          user_type: "owner",
+          userType: "owner",
+        },
+      });
+    }
+
+    // 2. If not present in userSchema, search in Employee collection
     const employee = await Employee.findOne({ email: cleanEmail });
     if (employee && employee.organisation) {
       return res.status(200).json({
@@ -32,21 +48,8 @@ export const getOrganisationByEmail = async (req, res) => {
         data: {
           email: cleanEmail,
           organisation: employee.organisation,
-          userType: "employee",
-        },
-      });
-    }
-
-    // 2. Search in User / HR collection
-    const user = await User.findOne({ email: cleanEmail });
-    if (user && user.organisation) {
-      return res.status(200).json({
-        status: true,
-        message: "Organisation retrieved successfully",
-        data: {
-          email: cleanEmail,
-          organisation: user.organisation,
-          userType: user.role || "hr",
+          user_type: "worker",
+          userType: "worker",
         },
       });
     }
@@ -136,7 +139,7 @@ export const verifyToken = async (req, res) => {
  */
 export const emailLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, organisation } = req.body;
 
     if (!email || !password) {
       return res.status(422).json({
@@ -163,10 +166,103 @@ export const emailLogin = async (req, res) => {
 
     const token = generateToken(user._id);
     const formattedUser = userResource(user);
+    const selectedOrg = organisation || formattedUser.organisation || "sidegigs";
 
     return res.status(200).json({
       status: true,
       message: "Login successful",
+      data: {
+        user: formattedUser,
+        organisation: selectedOrg,
+        token,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Login failed",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Create HR User API (Registration with preferences, business info, location, and phone)
+ */
+export const createHrUser = async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone_number,
+      is_company,
+      is_individual,
+      business_name,
+      business_type,
+      location_text,
+      location,
+      is_hire_works,
+      is_manage_attendance,
+      is_manage_jobs,
+      is_find_temporary_works,
+      organisation,
+      role,
+    } = req.body;
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existingUser = await userRepository.findByEmail(cleanEmail);
+    if (existingUser) {
+      return res.status(409).json({
+        status: false,
+        message: "A user with this email address already exists",
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    let formattedLocation = { type: "Point", coordinates: [0, 0] };
+    if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+      formattedLocation = {
+        type: location.type || "Point",
+        coordinates: location.coordinates,
+      };
+    } else if (Array.isArray(location) && location.length === 2) {
+      formattedLocation = {
+        type: "Point",
+        coordinates: location,
+      };
+    }
+
+    const userData = {
+      name,
+      email: cleanEmail,
+      password: hashedPassword,
+      phone_number: phone_number || null,
+      is_company: Boolean(is_company),
+      is_individual: Boolean(is_individual),
+      business_name: business_name || null,
+      business_type: business_type || null,
+      location_text: location_text || null,
+      location: formattedLocation,
+      is_hire_works: Boolean(is_hire_works),
+      is_manage_attendance: Boolean(is_manage_attendance),
+      is_manage_jobs: Boolean(is_manage_jobs),
+      is_find_temporary_works: Boolean(is_find_temporary_works),
+      organisation: organisation || business_name || "sidegigs",
+      role: role || "hr",
+      status: "active",
+    };
+
+    const newUser = await userRepository.create(userData);
+    const token = generateToken(newUser._id);
+    const formattedUser = userResource(newUser);
+
+    return res.status(201).json({
+      status: true,
+      message: "HR user account created successfully",
       data: {
         user: formattedUser,
         organisation: formattedUser.organisation,
@@ -176,7 +272,7 @@ export const emailLogin = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       status: false,
-      message: "Login failed",
+      message: "Failed to create HR user",
       error: error.message,
     });
   }

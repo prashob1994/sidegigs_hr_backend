@@ -6,12 +6,14 @@ import {
   createApplicant,
   advanceToNextStage,
   changeApplicantStage,
+  listManagerByStatus,
 } from "../controllers/atsController.js";
 import {
   validateCreateJob,
   validateCreateApplicant,
   validateApplicantAction,
   validateChangeStage,
+  validateManagerEnquiry,
 } from "../requests/atsRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
 
@@ -56,7 +58,7 @@ atsRouter.post("/jobs/list", listJobs);
  * @swagger
  * /api/{organisation}/ats/jobs/create:
  *   post:
- *     summary: Create job opening publishing position to ATS portal
+ *     summary: Create job posting with complete job details and GeoJSON location
  *     tags: [ATS Recruitment]
  *     security:
  *       - bearerAuth: []
@@ -73,30 +75,91 @@ atsRouter.post("/jobs/list", listJobs);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title]
+ *             required: [job_title, company]
  *             properties:
- *               title:
+ *               job_id:
  *                 type: string
- *                 example: "Lead Mobile Architect (Flutter)"
- *               department:
+ *                 example: "JOB-102948"
+ *               job_title:
  *                 type: string
- *                 enum: [Engineering, Design, HR, Product]
- *                 example: "Engineering"
- *               workplaceType:
+ *                 example: "Senior Node.js Backend Engineer"
+ *               company:
  *                 type: string
- *                 enum: [Remote, Onsite, Hybrid]
- *                 example: "Remote"
+ *                 example: "SideGigs HR Tech"
+ *               job_description:
+ *                 type: string
+ *                 example: "Looking for an experienced Node.js engineer to build scalable microservices."
+ *               payment:
+ *                 type: string
+ *                 example: "120000"
+ *               payment_type:
+ *                 type: string
+ *                 example: "monthly"
+ *               job_requirements:
+ *                 type: string
+ *                 example: "5+ years of experience in Node.js, Express, MongoDB, and Redis."
+ *               location_text:
+ *                 type: string
+ *                 example: "Bangalore, India (Hybrid)"
  *               location:
+ *                 type: object
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     enum: [Point]
+ *                     example: "Point"
+ *                   coordinates:
+ *                     type: array
+ *                     items:
+ *                       type: number
+ *                     example: [77.5946, 12.9716]
+ *                     description: "[longitude, latitude]"
+ *               start_date:
  *                 type: string
- *                 example: "HQ Bangalore / Remote"
- *               deadline:
+ *                 format: date
+ *                 example: "2026-10-01"
+ *               end_date:
  *                 type: string
- *                 example: "2026-09-30"
+ *                 format: date
+ *                 example: "2026-11-01"
+ *               start_time:
+ *                 type: string
+ *                 example: "09:00 AM"
+ *               end_time:
+ *                 type: string
+ *                 example: "06:00 PM"
+ *               created_by:
+ *                 type: number
+ *                 example: 1
+ *               status:
+ *                 type: string
+ *                 enum: [open, closed]
+ *                 example: "open"
+ *               category:
+ *                 type: string
+ *                 example: "Software Engineering"
+ *               phone_number:
+ *                 type: string
+ *                 example: "+919876543210"
+ *               is_verified:
+ *                 type: boolean
+ *                 example: true
+ *               collect_phone:
+ *                 type: boolean
+ *                 example: true
+ *               collect_resume:
+ *                 type: boolean
+ *                 example: true
+ *               logo:
+ *                 type: string
+ *                 example: "https://cdn.sidegigs.com/logos/company.png"
  *     responses:
  *       201:
  *         description: Job posting created successfully
  *       422:
  *         description: Validation error
+ *       500:
+ *         description: Server error
  */
 atsRouter.post("/jobs/create", validateCreateJob, createJob);
 
@@ -255,5 +318,41 @@ atsRouter.post("/applicants/next-stage", validateApplicantAction, advanceToNextS
  *         description: Validation error
  */
 atsRouter.post("/applicants/change-stage", validateChangeStage, changeApplicantStage);
+
+/**
+ * @swagger
+ * /api/{organisation}/ats/jobs/manager_enquiry:
+ *   post:
+ *     summary: job enquiry
+ *     tags: [ATS Recruitment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enquiry_type:
+ *                 type: string
+ *                 description: "enquiry type status (1 => accepted , 0=> pending, rejected)"
+ *                 example: "1"
+ *     responses:
+ *       200:
+ *         description: Job listed successfully
+ *       404:
+ *         description: Job not found
+ *       500:
+ *         description: Internal server error
+ */
+atsRouter.post("/jobs/manager_enquiry", validateManagerEnquiry, listManagerByStatus);
 
 export default atsRouter;

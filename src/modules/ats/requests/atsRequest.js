@@ -2,21 +2,38 @@ import Joi from "joi";
 import joiCustomMessages from "../../../utils/joiCustomMessages.js";
 
 export const createJobSchema = Joi.object({
-  title: Joi.string().required().messages(joiCustomMessages).label("Job Title"),
-  department: Joi.string()
-    .valid("Engineering", "Design", "HR", "Product")
+  job_id: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job ID"),
+  job_title: Joi.string().required().messages(joiCustomMessages).label("Job Title"),
+  company: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Company"),
+  job_description: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job Description"),
+  payment: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Payment"),
+  payment_type: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Payment Type"),
+  job_requirements: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job Requirements"),
+  location_text: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Location Text"),
+  location: Joi.object({
+    type: Joi.string().valid("Point").default("Point").messages(joiCustomMessages).label("Location Type"),
+    coordinates: Joi.array()
+      .items(Joi.number())
+      .length(2)
+      .optional()
+      .messages(joiCustomMessages)
+      .label("Location Coordinates"),
+  })
     .optional()
-    .default("Engineering")
     .messages(joiCustomMessages)
-    .label("Department"),
-  workplaceType: Joi.string()
-    .valid("Remote", "Onsite", "Hybrid")
-    .optional()
-    .default("Remote")
-    .messages(joiCustomMessages)
-    .label("Workplace Type"),
-  location: Joi.string().optional().messages(joiCustomMessages).label("Location"),
-  deadline: Joi.date().iso().optional().allow("", null).messages(joiCustomMessages).label("Deadline"),
+    .label("Location"),
+  start_date: Joi.date().iso().allow("", null).optional().messages(joiCustomMessages).label("Start Date"),
+  end_date: Joi.date().iso().allow("", null).optional().messages(joiCustomMessages).label("End Date"),
+  start_time: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Start Time"),
+  end_time: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("End Time"),
+  created_by: Joi.number().optional().messages(joiCustomMessages).label("Created By"),
+  status: Joi.string().valid("open", "closed").optional().default("open").messages(joiCustomMessages).label("Status"),
+  category: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Category"),
+  phone_number: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Phone Number"),
+  is_verified: Joi.boolean().optional().default(false).messages(joiCustomMessages).label("Is Verified"),
+  collect_phone: Joi.boolean().optional().default(false).messages(joiCustomMessages).label("Collect Phone"),
+  collect_resume: Joi.boolean().optional().default(false).messages(joiCustomMessages).label("Collect Resume"),
+  logo: Joi.string().allow("", null).optional().default(null).messages(joiCustomMessages).label("Logo"),
 });
 
 export const validateCreateJob = (req, res, next) => {
@@ -80,6 +97,30 @@ export const changeStageSchema = Joi.object({
 
 export const validateChangeStage = (req, res, next) => {
   const { error } = changeStageSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(422).json({
+      status: false,
+      message: "Validation Error",
+      errors: error.details.map((err) => err.message),
+    });
+  }
+  next();
+};
+
+export const managerEnquirySchema = Joi.object({
+  enquiry_type: Joi.alternatives()
+    .try(
+      Joi.string().valid("1", "0", "accepted", "pending", "rejected", ""),
+      Joi.number().valid(1, 0)
+    )
+    .optional()
+    .allow("", null)
+    .messages(joiCustomMessages)
+    .label("Enquiry Type"),
+});
+
+export const validateManagerEnquiry = (req, res, next) => {
+  const { error } = managerEnquirySchema.validate(req.body, { abortEarly: false });
   if (error) {
     return res.status(422).json({
       status: false,

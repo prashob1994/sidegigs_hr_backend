@@ -1,4 +1,6 @@
 import atsRepository from "../repositories/atsRepository.js";
+import Job from "../models/jobModel.js";
+import User from "../../auth/models/userModel.js";
 
 const STAGE_ORDER = ["Sourced", "Screening", "Interview", "Offered", "Hired", "Rejected"];
 
@@ -12,8 +14,8 @@ export const listJobs = async (req, res) => {
     if (req.body.status) {
       filter.status = req.body.status;
     }
-    if (req.body.department && req.body.department !== "All") {
-      filter.department = req.body.department;
+    if (req.body.category) {
+      filter.category = req.body.category;
     }
 
     const jobs = await atsRepository.findJobsByOrganisation(organisation, filter);
@@ -21,19 +23,35 @@ export const listJobs = async (req, res) => {
 
     const formattedJobs = jobs.map((job) => ({
       id: job._id,
-      title: job.title,
-      department: job.department,
-      jobType: job.jobType,
-      workplaceType: job.workplaceType,
+      key_id: job.key_id,
+      job_id: job.job_id,
+      job_title: job.job_title,
+      company: job.company,
+      job_description: job.job_description,
+      payment: job.payment,
+      payment_type: job.payment_type,
+      job_requirements: job.job_requirements,
+      location_text: job.location_text,
       location: job.location,
-      deadline: job.deadline ? `Deadline: ${new Date(job.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "No Deadline",
-      applicantsCount: job.applicantsCount,
+      start_date: job.start_date,
+      end_date: job.end_date,
+      start_time: job.start_time,
+      end_time: job.end_time,
+      created_by: job.created_by,
       status: job.status,
+      category: job.category,
+      phone_number: job.phone_number,
+      is_verified: job.is_verified,
+      collect_phone: job.collect_phone,
+      collect_resume: job.collect_resume,
+      logo: job.logo,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
     }));
 
     return res.status(200).json({
       status: true,
-      message: `Active jobs for ${organisation}`,
+      message: `Jobs for ${organisation}`,
       data: {
         totalActiveJobs: counts.totalJobs,
         totalApplicants: counts.totalApplicants,
@@ -51,26 +69,77 @@ export const listJobs = async (req, res) => {
 };
 
 /**
- * Create a new job posting (Create Job Opening Modal - Image 4)
+ * Create a new job posting
  */
 export const createJob = async (req, res) => {
   try {
     const organisation = req.params.organisation;
-    const { title, department, workplaceType, location, deadline } = req.body;
+    const {
+      job_id,
+      job_title,
+      company,
+      job_description,
+      payment,
+      payment_type,
+      job_requirements,
+      location_text,
+      location,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      created_by,
+      status,
+      category,
+      phone_number,
+      is_verified,
+      collect_phone,
+      collect_resume,
+      logo,
+    } = req.body;
 
-    const job = await atsRepository.createJob({
-      organisation,
-      title,
-      department: department || "Engineering",
-      jobType: "Full Time",
-      workplaceType: workplaceType || "Remote",
-      location: location || "HQ Bangalore",
-      deadline: deadline ? new Date(deadline) : null,
-    });
+    let formattedLocation = { type: "Point", coordinates: [0, 0] };
+    if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+      formattedLocation = {
+        type: location.type || "Point",
+        coordinates: location.coordinates,
+      };
+    } else if (Array.isArray(location) && location.length === 2) {
+      formattedLocation = {
+        type: "Point",
+        coordinates: location,
+      };
+    }
+
+    const jobData = {
+      job_id: job_id || `JOB-${Date.now()}`,
+      job_title,
+      company: company || organisation || "SideGigs",
+      job_description: job_description || "",
+      payment: payment || "",
+      payment_type: payment_type || "",
+      job_requirements: job_requirements || "",
+      location_text: location_text || "",
+      location: formattedLocation,
+      start_date: start_date ? new Date(start_date) : null,
+      end_date: end_date ? new Date(end_date) : null,
+      start_time: start_time || null,
+      end_time: end_time || null,
+      created_by: created_by || req.user?.key_id || 1,
+      status: status || "open",
+      category: category || "",
+      phone_number: phone_number || "",
+      is_verified: is_verified !== undefined ? is_verified : false,
+      collect_phone: collect_phone !== undefined ? collect_phone : false,
+      collect_resume: collect_resume !== undefined ? collect_resume : false,
+      logo: logo || null,
+    };
+
+    const job = await atsRepository.createJob(jobData);
 
     return res.status(201).json({
       status: true,
-      message: "Job opening published successfully to ATS portal",
+      message: "Job opening published successfully",
       data: job,
     });
   } catch (error) {
@@ -221,6 +290,68 @@ export const changeApplicantStage = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Failed to update stage",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Job Manager Enquiry (Find who applied to the jobs)
+ */
+export const listManagerByStatus = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.user && req.user.key_id) {
+      filter.created_by = req.user.key_id;
+    } else if (req.body.created_by) {
+      filter.created_by = req.body.created_by;
+    }
+
+    const enquiryOptions = {};
+    if (req.body.enquiry_type !== undefined && req.body.enquiry_type !== null) {
+      enquiryOptions.type = req.body.enquiry_type;
+    }
+
+    const listjob = await atsRepository.listUserJobs(filter, enquiryOptions);
+
+    if (!listjob) {
+      return res.status(404).json({
+        status: false,
+        message: "Failed to list job enquiries",
+      });
+    }
+
+    const jobIds = listjob.map((job) => job.job_id);
+    const userIds = listjob.map((user) => user.user_id);
+
+    const jobs = await Job.find({ key_id: { $in: jobIds } });
+    const users = await User.find({ key_id: { $in: userIds } }).select("-password");
+
+    const userMap = Object.fromEntries(
+      users.map((user) => [user.key_id || user._id, user])
+    );
+    const jobMap = Object.fromEntries(
+      jobs.map((job) => [job.key_id || job._id, job])
+    );
+
+    const enrichedUserJobs = listjob.map((userJob) => {
+      const uObj = userJob.toObject ? userJob.toObject() : userJob;
+      return {
+        ...uObj,
+        job: jobMap[userJob.job_id] || null,
+        user: userMap[userJob.user_id] || null,
+      };
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: "Job enquiries listed successfully",
+      data: enrichedUserJobs,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to fetch job enquiries",
       error: error.message,
     });
   }

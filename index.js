@@ -33,8 +33,11 @@ app.use(morgan(process.env.LOGGING_FORMAT || "dev"));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "src", "views"));
 
-// Initialize Database Connection
-connectDB();
+// Serverless-friendly Database Connection Middleware
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 // Express Session Configuration
 app.use(
@@ -89,9 +92,12 @@ configureRoutes(app);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-app.listen(port, () => {
-  console.log(`🚀 SidGigs HR Backend server running on port ${port}`);
-  console.log(`📖 Swagger API Docs available at /api/documentation`);
-});
+// Only start TCP listener in local / non-Vercel environment
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`🚀 SidGigs HR Backend server running on port ${port}`);
+    console.log(`📖 Swagger API Docs available at /api/documentation`);
+  });
+}
 
 export default app;
