@@ -41,7 +41,7 @@ const swagger = {
       },
     ],
   },
-  apis: ["./src/routes/*.js", "./src/modules/**/*.js"],
+  apis: ["./index.js", "./src/routes/*.js", "./src/modules/**/*.js"],
 };
 
 export default swagger;

@@ -78,6 +78,36 @@ const chatRouter = express.Router({ mergeParams: true });
  *         description: Forbidden - External user can only reply to an active HR-initiated conversation
  *       422:
  *         description: Validation Error
+ *
+ * /api/chat/receive:
+ *   post:
+ *     summary: Webhook alias for External App to deliver user message replies to HR
+ *     tags: [Inter-App Chat]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [sender_id, message]
+ *             properties:
+ *               sender_id:
+ *                 type: number
+ *                 example: 25
+ *               hr_id:
+ *                 type: number
+ *                 example: 1
+ *               conversation_id:
+ *                 type: string
+ *                 example: "conv_1_25_1728666000000"
+ *               message:
+ *                 type: string
+ *                 example: "Hello, thank you for reaching out!"
+ *     responses:
+ *       200:
+ *         description: Message received and saved to MongoDB
+ *       403:
+ *         description: Forbidden - External user can only reply to an active HR-initiated conversation
  */
 chatRouter.post("/incoming", validateIncomingMessage, receiveIncomingMessage);
 chatRouter.post("/receive", validateIncomingMessage, receiveIncomingMessage);

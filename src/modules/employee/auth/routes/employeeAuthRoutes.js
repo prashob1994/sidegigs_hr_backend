@@ -38,6 +38,43 @@ const employeeAuthRouter = express.Router({ mergeParams: true });
  *         description: Invalid credentials
  *       422:
  *         description: Validation Error
+ *
+ * /api/{organisation}/auth/login:
+ *   post:
+ *     summary: Employee Login scoped to organisation
+ *     tags: [Employee Auth]
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Employee email address or Employee Code
+ *                 example: "prashob@gmail.com"
+ *               password:
+ *                 type: string
+ *                 description: Employee password
+ *                 example: "Password123"
+ *     responses:
+ *       200:
+ *         description: Employee authenticated successfully
+ *       401:
+ *         description: Invalid credentials
+ *       422:
+ *         description: Validation Error
  */
 employeeAuthRouter.post("/login", employeeLogin);
 

@@ -86,6 +86,56 @@ const router = express.Router();
  *         description: User with this email already exists
  *       422:
  *         description: Validation error
+ *
+ * /api/auth/register-hr:
+ *   post:
+ *     summary: Register HR user account (alias for create-hr)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Jane Doe"
+ *               email:
+ *                 type: string
+ *                 example: "jane.doe@sidegigs.com"
+ *               password:
+ *                 type: string
+ *                 example: "SecurePass123!"
+ *     responses:
+ *       201:
+ *         description: HR user account created successfully
+ *
+ * /api/auth/register:
+ *   post:
+ *     summary: Register user account (alias for create-hr)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Jane Doe"
+ *               email:
+ *                 type: string
+ *                 example: "jane.doe@sidegigs.com"
+ *               password:
+ *                 type: string
+ *                 example: "SecurePass123!"
+ *     responses:
+ *       201:
+ *         description: User account created successfully
  */
 router.post("/create-hr", validateRegister, createHrUser);
 router.post("/register-hr", validateRegister, createHrUser);
@@ -115,6 +165,25 @@ router.post("/register", validateRegister, createHrUser);
  *         description: Email not found
  *       422:
  *         description: Validation Error
+ *
+ * /api/auth/organisation:
+ *   post:
+ *     summary: Public API to get organisation by email (alias for get-organisation)
+ *     tags: [Auth Public]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "prashob@gmail.com"
+ *     responses:
+ *       200:
+ *         description: Organisation retrieved successfully
  */
 router.post("/get-organisation", getOrganisationByEmail);
 router.post("/organisation", getOrganisationByEmail);
@@ -171,6 +240,33 @@ router.post("/verify-token", verifyToken);
  * /api/auth/login:
  *   post:
  *     summary: Direct Email and Password Login (with optional organisation)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "info@gmail.com"
+ *               password:
+ *                 type: string
+ *                 example: "Admin123,."
+ *               organisation:
+ *                 type: string
+ *                 example: "sidegigs"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ *
+ * /api/auth/email-login:
+ *   post:
+ *     summary: Direct Email and Password Login (alias for /login)
  *     tags: [Auth]
  *     requestBody:
  *       required: true

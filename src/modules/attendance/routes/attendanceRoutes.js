@@ -189,6 +189,39 @@ attendanceRouter.post("/history", getHistory);
  *     responses:
  *       200:
  *         description: All employees attendance history roster
+ *
+ * /api/{organisation}/attendance/organisation-history:
+ *   post:
+ *     summary: HR Endpoint to get all employees attendance history roster cards (alias for all-history)
+ *     tags: [Attendance Report]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 example: "2026-08-01"
+ *               endDate:
+ *                 type: string
+ *                 example: "2026-08-31"
+ *               status:
+ *                 type: string
+ *                 example: "all"
+ *     responses:
+ *       200:
+ *         description: All employees attendance history roster
  */
 attendanceRouter.post("/all-history", getAllEmployeesHistory);
 attendanceRouter.post("/organisation-history", getAllEmployeesHistory);

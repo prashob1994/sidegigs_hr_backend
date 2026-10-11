@@ -52,6 +52,16 @@ app.use(
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: API Home / Health check
+ *     tags: [General]
+ *     responses:
+ *       200:
+ *         description: API Status and documentation info
+ */
 // Home Route with graceful fallback rendering for serverless deployments
 app.get("/", (req, res) => {
   res.render("index", (err, html) => {
