@@ -7,6 +7,7 @@ import dashboardRouter from "../modules/dashboard/routes/dashboardRoutes.js";
 import atsRouter from "../modules/ats/routes/atsRoutes.js";
 import claimRouter from "../modules/claims/routes/claimRoutes.js";
 import payrollRouter from "../modules/payroll/routes/payrollRoutes.js";
+import chatRouter from "../modules/chat/routes/chatRoutes.js";
 
 const configureRoutes = (app) => {
   // Remote HR Authentication Proxy Routes (/api/auth/*)
@@ -38,6 +39,10 @@ const configureRoutes = (app) => {
 
   // URL-Scoped Payroll & Payslip Routes (/api/:organisation/payroll/*)
   app.use("/api/:organisation/payroll", payrollRouter);
+
+  // URL-Scoped and Global Inter-App Chat Routes (/api/:organisation/chat/* & /api/chat/*)
+  app.use("/api/:organisation/chat", chatRouter);
+  app.use("/api/chat", chatRouter);
 };
 
 export default configureRoutes;
