@@ -1,0 +1,52 @@
+# ============================================================
+#  .dockerignore — SidGigs HR Backend
+#  Speeds up Docker build context and keeps image lean
+# ============================================================
+
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Environment — NEVER bake .env into the image
+.env
+.env.*
+!.env-example
+
+# Test / Dev artefacts
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker itself
+Dockerfile*
+docker-compose*
+deploy.sh
+
+# Vercel
+vercel.json
+.vercel/
+
+# README
+README.md
