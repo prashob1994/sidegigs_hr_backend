@@ -1,21 +1,21 @@
 # ============================================================
-#  SidGigs HR Backend — Production Docker Image
-#  Node.js 20 LTS (Alpine) with ES-module support
+# SidGigs HR Backend — Production Docker Image
+# Node.js 20 LTS (Alpine) with ES-module support
 # ============================================================
 
 # ── Stage 1: Dependency installer ────────────────────────────
 FROM node:20-alpine AS deps
 
-# Install OS-level build tools (needed for some native addons)
+# Install build tools required by native npm dependencies
 RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Copy only manifests first so Docker layer-caches node_modules
-COPY package.json yarn.lock ./
+# Copy package manifest (no Yarn required)
+COPY package.json ./
 
-# Install production dependencies only
-RUN yarn install --frozen-lockfile --production
+# Install production dependencies
+RUN npm install --omit=dev --no-audit --no-fund
 
 
 # ── Stage 2: Production image ─────────────────────────────────
@@ -26,24 +26,26 @@ RUN addgroup -S sidgigs && adduser -S sidgigs -G sidgigs
 
 WORKDIR /app
 
-# Copy dependencies from previous stage
+ENV NODE_ENV=production
+
+# Copy installed dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy application source
 COPY . .
 
-# Ensure uploads / public dirs exist and are owned by non-root user
+# Create required directories and set permissions
 RUN mkdir -p uploads public \
     && chown -R sidgigs:sidgigs /app
 
 USER sidgigs
 
-# Expose the application port
+# Application port
 EXPOSE 3000
 
-# Health-check — polls the root endpoint every 30 s
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/ || exit 1
 
 # Start the server
 CMD ["node", "index.js"]
