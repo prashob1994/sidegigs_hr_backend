@@ -1,54 +1,47 @@
-# ============================================================
-#  SidGigs HR Backend — Docker Compose
-#  Usage:
-#    docker-compose up -d          → Start / restart
-#    docker-compose down           → Stop and remove containers
-#    docker-compose logs -f        → Tail logs
-# ============================================================
 
-version: "3.9"
+# ============================================================
+# SidGigs HR Backend — Docker Compose
+# ============================================================
 
 services:
-  # ── Application Service ─────────────────────────────────────
   sidgigs-hr-backend:
     build:
       context: .
       dockerfile: Dockerfile
+
     image: sidgigs-hr-backend:latest
     container_name: sidgigs_hr_backend
     restart: unless-stopped
 
     ports:
-      - "${PORT:-3000}:3000"
+      - "3002:3002"
 
     environment:
-      # Load every variable from the .env file present on the host
-      - NODE_ENV=${NODE_ENV:-production}
-      - PORT=${PORT:-3000}
-      - HOST=${HOST:-0.0.0.0}
-      - APP_URL=${APP_URL}
-      - MONGO_URI=${MONGO_URI}
-      - JWT_SECRET=${JWT_SECRET}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - STORAGE_TYPE=${STORAGE_TYPE:-local}
-      - SYSTEM_ENV=${SYSTEM_ENV:-production}
-      - LOGGING_FORMAT=${LOGGING_FORMAT:-combined}
-      - SIDEGIGS_API_URL=${SIDEGIGS_API_URL}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3002"
+      HOST: "0.0.0.0"
+      APP_URL: ${APP_URL:-https://api.hr.sidegigs.app}
+      MONGO_URI: ${MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      SYSTEM_ENV: ${SYSTEM_ENV:-production}
+      LOGGING_FORMAT: ${LOGGING_FORMAT:-combined}
+      SIDEGIGS_API_URL: ${SIDEGIGS_API_URL}
 
     volumes:
-      # Persist uploaded files across container restarts
       - ./uploads:/app/uploads
       - ./public:/app/public
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
 
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
