@@ -70,6 +70,21 @@ const jobSchema = mongoose.Schema(
       type: String, // Store image path or URL
       default: null,
     },
+    // Scoped Organisation
+    organisation: {
+      type: String,
+      default: "sidegigs",
+      index: true,
+    },
+    // Synced reference fields from sidegigs_backend
+    sidegigs_job_id: {
+      type: String,
+      default: null,
+    },
+    sidegigs_key_id: {
+      type: Number,
+      default: null,
+    },
   },
   {
     timestamps: true,

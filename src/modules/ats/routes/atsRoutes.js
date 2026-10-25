@@ -2,18 +2,22 @@ import express from "express";
 import {
   listJobs,
   createJob,
+  updateJob,
   listApplicants,
   createApplicant,
   advanceToNextStage,
   changeApplicantStage,
   listManagerByStatus,
+  syncApplication,
 } from "../controllers/atsController.js";
 import {
   validateCreateJob,
+  validateUpdateJob,
   validateCreateApplicant,
   validateApplicantAction,
   validateChangeStage,
   validateManagerEnquiry,
+  validateSyncApplication,
 } from "../requests/atsRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
 
@@ -162,6 +166,57 @@ atsRouter.post("/jobs/list", listJobs);
  *         description: Server error
  */
 atsRouter.post("/jobs/create", validateCreateJob, createJob);
+
+/**
+ * @swagger
+ * /api/{organisation}/ats/jobs/update:
+ *   post:
+ *     summary: Update an existing job posting and synchronize with sidegigs_backend
+ *     tags: [ATS Recruitment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: Mongo _id, key_id, or job_id
+ *                 example: "64e0a1b2c3d4e5f678901234"
+ *               job_title:
+ *                 type: string
+ *                 example: "Lead Full Stack Engineer"
+ *               company:
+ *                 type: string
+ *                 example: "SideGigs HR"
+ *               job_description:
+ *                 type: string
+ *                 example: "Updated job description"
+ *               status:
+ *                 type: string
+ *                 enum: [open, closed]
+ *                 example: "open"
+ *     responses:
+ *       200:
+ *         description: Job updated successfully
+ *       404:
+ *         description: Job posting not found
+ *       422:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
+atsRouter.post("/jobs/update", validateUpdateJob, updateJob);
 
 /**
  * @swagger
@@ -354,5 +409,54 @@ atsRouter.post("/applicants/change-stage", validateChangeStage, changeApplicantS
  *         description: Internal server error
  */
 atsRouter.post("/jobs/manager_enquiry", validateManagerEnquiry, listManagerByStatus);
+
+/**
+ * @swagger
+ * /api/{organisation}/ats/applications/sync:
+ *   post:
+ *     summary: Synchronize candidate application from sidegigs_backend into SideGigs HR ATS
+ *     tags: [ATS Recruitment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [candidateName]
+ *             properties:
+ *               hr_job_id:
+ *                 type: string
+ *                 example: "64e0a1b2c3d4e5f678901234"
+ *               candidateName:
+ *                 type: string
+ *                 example: "John Doe"
+ *               email:
+ *                 type: string
+ *                 example: "johndoe@example.com"
+ *               phone:
+ *                 type: string
+ *                 example: "+919876543210"
+ *               resume:
+ *                 type: string
+ *                 example: "https://api.sidegigs.app/uploads/resumes/resume.pdf"
+ *     responses:
+ *       201:
+ *         description: Application synchronized successfully
+ *       422:
+ *         description: Validation error
+ *       500:
+ *         description: Internal server error
+ */
+atsRouter.post("/applications/sync", validateSyncApplication, syncApplication);
+atsRouter.post("/sync-application", validateSyncApplication, syncApplication);
 
 export default atsRouter;

@@ -1,6 +1,7 @@
 import atsRepository from "../repositories/atsRepository.js";
 import Job from "../models/jobModel.js";
 import User from "../../auth/models/userModel.js";
+import sidegigsJobSyncService from "../services/sidegigsJobSyncService.js";
 
 const STAGE_ORDER = ["Sourced", "Screening", "Interview", "Offered", "Hired", "Rejected"];
 
@@ -115,6 +116,7 @@ export const createJob = async (req, res) => {
       job_id: job_id || `JOB-${Date.now()}`,
       job_title,
       company: company || organisation || "SideGigs",
+      organisation: organisation || "sidegigs",
       job_description: job_description || "",
       payment: payment || "",
       payment_type: payment_type || "",
@@ -137,10 +139,32 @@ export const createJob = async (req, res) => {
 
     const job = await atsRepository.createJob(jobData);
 
+    // Call SideGigs Backend API (/api/jobs/create) to sync the job
+    let syncResult = null;
+    try {
+      syncResult = await sidegigsJobSyncService.createJobInSidegigsBackend(
+        jobData,
+        job,
+        req.headers
+      );
+
+      // If backend created the job, link the backend IDs
+      if (syncResult?.success && syncResult?.data) {
+        if (syncResult.data.key_id) job.sidegigs_key_id = syncResult.data.key_id;
+        if (syncResult.data.job_id || syncResult.data._id) {
+          job.sidegigs_job_id = String(syncResult.data.job_id || syncResult.data._id);
+        }
+        await job.save();
+      }
+    } catch (syncError) {
+      console.warn("[ATS Controller] Sync to sidegigs_backend failed:", syncError.message);
+    }
+
     return res.status(201).json({
       status: true,
       message: "Job opening published successfully",
       data: job,
+      synced_backend_job: syncResult?.data || null,
     });
   } catch (error) {
     return res.status(500).json({
@@ -352,6 +376,149 @@ export const listManagerByStatus = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Failed to fetch job enquiries",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Update an existing job posting and sync to sidegigs_backend
+ */
+export const updateJob = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { id, job_id, key_id, location, start_date, end_date, ...restFields } = req.body;
+
+    const lookupId = id || job_id || key_id;
+    const existingJob = await atsRepository.findJobByIdOrKey(lookupId);
+
+    if (!existingJob) {
+      return res.status(404).json({
+        status: false,
+        message: "Job posting not found",
+      });
+    }
+
+    const updateData = { ...restFields };
+
+    if (location !== undefined) {
+      if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+        updateData.location = {
+          type: location.type || "Point",
+          coordinates: location.coordinates,
+        };
+      } else if (Array.isArray(location) && location.length === 2) {
+        updateData.location = {
+          type: "Point",
+          coordinates: location,
+        };
+      }
+    }
+
+    if (start_date !== undefined) updateData.start_date = start_date ? new Date(start_date) : null;
+    if (end_date !== undefined) updateData.end_date = end_date ? new Date(end_date) : null;
+
+    const updatedJob = await atsRepository.updateJob(existingJob._id, updateData);
+
+    let syncResult = null;
+    // If not called from sidegigs_backend sync, sync update to sidegigs_backend
+    if (!req.headers["x-from-backend-sync"]) {
+      syncResult = await sidegigsJobSyncService.updateJobInSidegigsBackend(
+        updatedJob,
+        updateData,
+        req.headers
+      );
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Job updated successfully",
+      data: updatedJob,
+      synced_backend_job: syncResult?.data || null,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to update job posting",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Synchronize application from sidegigs_backend to Sidegigs HR ATS
+ */
+export const syncApplication = async (req, res) => {
+  try {
+    const organisation = req.params.organisation || "sidegigs";
+    const {
+      hr_job_id,
+      job_key_id,
+      candidateName,
+      email,
+      phone,
+      appliedRole,
+      resume,
+      education_id,
+      age_id,
+      is_experienced,
+      is_disabled,
+      location,
+      user_id,
+      created_by,
+    } = req.body;
+
+    // Find the associated HR job if hr_job_id is provided
+    let hrJob = null;
+    if (hr_job_id) {
+      hrJob = await atsRepository.findJobByIdOrKey(hr_job_id);
+    }
+    if (!hrJob && job_key_id) {
+      hrJob = await atsRepository.findJobByIdOrKey(job_key_id);
+    }
+
+    // 1. Create candidate in ATS Applicant pipeline (for ATS Applicants Kanban / List)
+    const applicant = await atsRepository.createApplicant({
+      organisation,
+      jobId: hrJob ? hrJob._id : null,
+      candidateName: candidateName || "Applicant",
+      email: email || null,
+      phone: phone || null,
+      appliedRole: appliedRole || (hrJob ? hrJob.job_title : "Applicant"),
+      attachmentsText: resume ? `Resume: ${resume}` : "1 Attachments (Resume)",
+      stage: "Applied",
+      notes: `Applied via SideGigs App. Location: ${location || "N/A"}. Experienced: ${is_experienced ? "Yes" : "No"}. Disabled: ${is_disabled ? "Yes" : "No"}. Education ID: ${education_id || "N/A"}. Age ID: ${age_id || "N/A"}.`,
+      appliedDate: new Date(),
+    });
+
+    // 2. Create entry in UserJob (for ATS Job Manager Enquiry)
+    const userJob = await atsRepository.createUserJob({
+      job_id: hrJob ? hrJob.key_id : (job_key_id || 1),
+      user_id: user_id || 1,
+      status: "pending",
+      education_id: education_id || null,
+      age_id: age_id || null,
+      is_experienced: Boolean(is_experienced),
+      is_disabled: Boolean(is_disabled),
+      location: location || "",
+      name: candidateName || "",
+      phone: phone || "",
+      resume: resume || null,
+      created_by: hrJob ? hrJob.created_by : (created_by || 1),
+    });
+
+    return res.status(201).json({
+      status: true,
+      message: "Application synchronized successfully to Sidegigs HR ATS",
+      data: {
+        applicant,
+        userJob,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to synchronize job application",
       error: error.message,
     });
   }

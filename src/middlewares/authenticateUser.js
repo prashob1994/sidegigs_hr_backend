@@ -1,9 +1,21 @@
 import jwt from "jsonwebtoken";
 
 /**
- * Middleware to authenticate requests using JWT Bearer Token
+ * Middleware to authenticate requests using JWT Bearer Token or internal service key
  */
 const authenticateUser = async (req, res, next) => {
+  // Allow inter-service communication between SideGigs Backend and SideGigs HR Backend
+  const serviceKey = req.headers["x-service-key"] || req.headers["x-internal-secret"];
+  const expectedKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
+  if (serviceKey && serviceKey === expectedKey) {
+    req.user = {
+      is_service: true,
+      organisation: req.params.organisation || "sidegigs",
+      key_id: 1,
+    };
+    return next();
+  }
+
   let token;
 
   if (
