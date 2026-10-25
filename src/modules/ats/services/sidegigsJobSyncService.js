@@ -47,8 +47,9 @@ class SidegigsJobSyncService {
       "Content-Type": "application/json",
       "x-service-key": serviceKey,
       "x-from-hr-sync": "true",
+      authorization: `Bearer ${serviceKey}`,
       ...(incomingHeaders.authorization && {
-        authorization: incomingHeaders.authorization,
+        "x-original-auth": incomingHeaders.authorization,
       }),
     };
 
@@ -109,8 +110,9 @@ class SidegigsJobSyncService {
       "Content-Type": "application/json",
       "x-service-key": serviceKey,
       "x-from-hr-sync": "true",
+      authorization: `Bearer ${serviceKey}`,
       ...(incomingHeaders.authorization && {
-        authorization: incomingHeaders.authorization,
+        "x-original-auth": incomingHeaders.authorization,
       }),
     };
 

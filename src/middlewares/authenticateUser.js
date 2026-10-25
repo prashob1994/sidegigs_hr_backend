@@ -5,8 +5,17 @@ import jwt from "jsonwebtoken";
  */
 const authenticateUser = async (req, res, next) => {
   // Allow inter-service communication between SideGigs Backend and SideGigs HR Backend
-  const serviceKey = req.headers["x-service-key"] || req.headers["x-internal-secret"];
   const expectedKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"] || "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+  const serviceKey =
+    req.headers["x-service-key"] ||
+    req.headers["x-internal-secret"] ||
+    req.headers["x-api-key"] ||
+    bearerToken ||
+    req.query?.service_key;
+
   if (serviceKey && serviceKey === expectedKey) {
     req.user = {
       is_service: true,
