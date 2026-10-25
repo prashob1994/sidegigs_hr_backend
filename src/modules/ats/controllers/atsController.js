@@ -112,6 +112,68 @@ export const createJob = async (req, res) => {
       };
     }
 
+    // Check if job already exists by _id, id, job_id, or key_id (upsert pattern)
+    const existingJob = await atsRepository.findExistingJob({
+      _id: req.body._id,
+      id: req.body.id,
+      job_id: req.body.job_id,
+      key_id: req.body.key_id,
+    });
+
+    if (existingJob) {
+      // Update existing job instead of creating a duplicate job
+      const updateData = {
+        job_title: job_title || existingJob.job_title,
+        company: company || existingJob.company,
+        organisation: organisation || existingJob.organisation || "sidegigs",
+        job_description: job_description !== undefined ? job_description : existingJob.job_description,
+        payment: payment !== undefined ? payment : existingJob.payment,
+        payment_type: payment_type !== undefined ? payment_type : existingJob.payment_type,
+        job_requirements: job_requirements !== undefined ? job_requirements : existingJob.job_requirements,
+        location_text: location_text !== undefined ? location_text : existingJob.location_text,
+        location: location ? formattedLocation : existingJob.location,
+        start_date: start_date ? new Date(start_date) : existingJob.start_date,
+        end_date: end_date ? new Date(end_date) : existingJob.end_date,
+        start_time: start_time !== undefined ? start_time : existingJob.start_time,
+        end_time: end_time !== undefined ? end_time : existingJob.end_time,
+        status: status || existingJob.status,
+        category: category !== undefined ? category : existingJob.category,
+        phone_number: phone_number !== undefined ? phone_number : existingJob.phone_number,
+        is_verified: is_verified !== undefined ? is_verified : existingJob.is_verified,
+        collect_phone: collect_phone !== undefined ? collect_phone : existingJob.collect_phone,
+        collect_resume: collect_resume !== undefined ? collect_resume : existingJob.collect_resume,
+        logo: logo !== undefined ? logo : existingJob.logo,
+      };
+
+      const updatedJob = await atsRepository.updateJob(existingJob._id, updateData);
+
+      let syncResult = null;
+      if (!req.headers["x-from-backend-sync"]) {
+        syncResult = await sidegigsJobSyncService.updateJobInSidegigsBackend(
+          updatedJob,
+          updateData,
+          req.headers
+        );
+
+        if (syncResult?.success && syncResult?.data) {
+          if (syncResult.data.key_id && !updatedJob.sidegigs_key_id) {
+            updatedJob.sidegigs_key_id = syncResult.data.key_id;
+          }
+          if ((syncResult.data.job_id || syncResult.data._id) && !updatedJob.sidegigs_job_id) {
+            updatedJob.sidegigs_job_id = String(syncResult.data.job_id || syncResult.data._id);
+          }
+          await updatedJob.save();
+        }
+      }
+
+      return res.status(200).json({
+        status: true,
+        message: "Job opening updated successfully",
+        data: updatedJob,
+        synced_backend_job: syncResult?.data || null,
+      });
+    }
+
     const jobData = {
       job_id: job_id || `JOB-${Date.now()}`,
       job_title,
@@ -387,10 +449,9 @@ export const listManagerByStatus = async (req, res) => {
 export const updateJob = async (req, res) => {
   try {
     const organisation = req.params.organisation;
-    const { id, job_id, key_id, location, start_date, end_date, ...restFields } = req.body;
+    const { _id, id, job_id, key_id, location, start_date, end_date, ...restFields } = req.body;
 
-    const lookupId = id || job_id || key_id;
-    const existingJob = await atsRepository.findJobByIdOrKey(lookupId);
+    const existingJob = await atsRepository.findExistingJob({ _id, id, job_id, key_id });
 
     if (!existingJob) {
       return res.status(404).json({
@@ -428,6 +489,16 @@ export const updateJob = async (req, res) => {
         updateData,
         req.headers
       );
+
+      if (syncResult?.success && syncResult?.data) {
+        if (syncResult.data.key_id && !updatedJob.sidegigs_key_id) {
+          updatedJob.sidegigs_key_id = syncResult.data.key_id;
+        }
+        if ((syncResult.data.job_id || syncResult.data._id) && !updatedJob.sidegigs_job_id) {
+          updatedJob.sidegigs_job_id = String(syncResult.data.job_id || syncResult.data._id);
+        }
+        await updatedJob.save();
+      }
     }
 
     return res.status(200).json({

@@ -14,7 +14,8 @@ const authenticateUser = async (req, res, next) => {
     req.headers["x-internal-secret"] ||
     req.headers["x-api-key"] ||
     bearerToken ||
-    req.query?.service_key;
+    req.query?.service_key ||
+    req.body?.service_key;
 
   if (serviceKey && serviceKey === expectedKey) {
     req.user = {

@@ -28,6 +28,8 @@ services:
       SYSTEM_ENV: ${SYSTEM_ENV:-production}
       LOGGING_FORMAT: ${LOGGING_FORMAT:-combined}
       SIDEGIGS_API_URL: ${SIDEGIGS_API_URL}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-sidegigs_hr_secret_key}
+      SIDEGIGS_JOBS_API_URL: ${SIDEGIGS_JOBS_API_URL:-https://api.sidegigs.app/api/jobs}
 
     volumes:
       - ./uploads:/app/uploads

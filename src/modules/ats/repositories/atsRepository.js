@@ -26,6 +26,32 @@ class AtsRepository {
   }
 
   /**
+   * Find existing job by _id, id, job_id, or key_id
+   * @param {Object} params - { _id, id, job_id, key_id }
+   */
+  async findExistingJob(params = {}) {
+    const { _id, id, job_id, key_id } = params;
+    const lookupId = _id || id;
+    if (lookupId && mongoose.Types.ObjectId.isValid(lookupId)) {
+      const job = await Job.findById(lookupId);
+      if (job) return job;
+    }
+    if (job_id) {
+      const job = await Job.findOne({ job_id: String(job_id) });
+      if (job) return job;
+    }
+    if (key_id !== undefined && key_id !== null && !isNaN(Number(key_id))) {
+      const job = await Job.findOne({ key_id: Number(key_id) });
+      if (job) return job;
+    }
+    if (lookupId) {
+      const job = await this.findJobByIdOrKey(lookupId);
+      if (job) return job;
+    }
+    return null;
+  }
+
+  /**
    * Find job by Mongo _id, numeric key_id, or string job_id
    * @param {String|Number} id
    */

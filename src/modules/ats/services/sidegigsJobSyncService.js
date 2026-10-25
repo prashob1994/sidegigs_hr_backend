@@ -20,6 +20,7 @@ class SidegigsJobSyncService {
     const serviceKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
 
     const payload = {
+      service_key: serviceKey || "sidegigs_hr_secret_key",
       job_title: jobData.job_title,
       company: jobData.company,
       job_description: jobData.job_description,
@@ -84,6 +85,7 @@ class SidegigsJobSyncService {
     const serviceKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
 
     const payload = {
+      service_key: serviceKey || "sidegigs_hr_secret_key",
       hr_job_id: String(hrJob._id),
       ...(hrJob.sidegigs_key_id && { key_id: hrJob.sidegigs_key_id }),
       ...(updateData.job_title !== undefined && { job_title: updateData.job_title }),
@@ -127,6 +129,10 @@ class SidegigsJobSyncService {
         data: response.data?.data || response.data,
       };
     } catch (error) {
+      if (error.response?.status === 404) {
+        console.log("[SidegigsJobSyncService] Job not found in sidegigs_backend during update; creating it now to link.");
+        return await this.createJobInSidegigsBackend(hrJob, hrJob, incomingHeaders);
+      }
       console.warn(`[SidegigsJobSyncService] Failed to update job in sidegigs_backend: ${error.message}`);
       return {
         success: false,

@@ -2,6 +2,9 @@ import Joi from "joi";
 import joiCustomMessages from "../../../utils/joiCustomMessages.js";
 
 export const createJobSchema = Joi.object({
+  _id: Joi.any().optional().messages(joiCustomMessages).label("Mongo ID"),
+  id: Joi.alternatives().try(Joi.string(), Joi.number()).optional().messages(joiCustomMessages).label("Job ID"),
+  key_id: Joi.number().optional().messages(joiCustomMessages).label("Key ID"),
   job_id: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job ID"),
   job_title: Joi.string().required().messages(joiCustomMessages).label("Job Title"),
   company: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Company"),
@@ -10,15 +13,19 @@ export const createJobSchema = Joi.object({
   payment_type: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Payment Type"),
   job_requirements: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job Requirements"),
   location_text: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Location Text"),
-  location: Joi.object({
-    type: Joi.string().valid("Point").default("Point").messages(joiCustomMessages).label("Location Type"),
-    coordinates: Joi.array()
-      .items(Joi.number())
-      .length(2)
-      .optional()
-      .messages(joiCustomMessages)
-      .label("Location Coordinates"),
-  })
+  location: Joi.alternatives()
+    .try(
+      Joi.object({
+        type: Joi.string().valid("Point").default("Point").messages(joiCustomMessages).label("Location Type"),
+        coordinates: Joi.array()
+          .items(Joi.number())
+          .length(2)
+          .optional()
+          .messages(joiCustomMessages)
+          .label("Location Coordinates"),
+      }),
+      Joi.array().items(Joi.number()).length(2)
+    )
     .optional()
     .messages(joiCustomMessages)
     .label("Location"),
@@ -34,7 +41,7 @@ export const createJobSchema = Joi.object({
   collect_phone: Joi.boolean().optional().default(false).messages(joiCustomMessages).label("Collect Phone"),
   collect_resume: Joi.boolean().optional().default(false).messages(joiCustomMessages).label("Collect Resume"),
   logo: Joi.string().allow("", null).optional().default(null).messages(joiCustomMessages).label("Logo"),
-});
+}).options({ abortEarly: false, stripUnknown: true });
 
 export const validateCreateJob = (req, res, next) => {
   const { error } = createJobSchema.validate(req.body, { abortEarly: false });
@@ -132,6 +139,7 @@ export const validateManagerEnquiry = (req, res, next) => {
 };
 
 export const updateJobSchema = Joi.object({
+  _id: Joi.any().optional().messages(joiCustomMessages).label("Mongo ID"),
   id: Joi.alternatives().try(Joi.string(), Joi.number()).optional().messages(joiCustomMessages).label("Job ID"),
   job_id: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job String ID"),
   key_id: Joi.number().optional().messages(joiCustomMessages).label("Job Key ID"),
@@ -166,8 +174,8 @@ export const updateJobSchema = Joi.object({
   collect_resume: Joi.boolean().optional().messages(joiCustomMessages).label("Collect Resume"),
   logo: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Logo"),
 })
-  .or("id", "job_id", "key_id")
-  .options({ abortEarly: false });
+  .or("_id", "id", "job_id", "key_id")
+  .options({ abortEarly: false, stripUnknown: true });
 
 export const validateUpdateJob = (req, res, next) => {
   const { error } = updateJobSchema.validate(req.body, { abortEarly: false });
@@ -195,9 +203,10 @@ export const syncApplicationSchema = Joi.object({
   is_experienced: Joi.boolean().optional().default(false),
   is_disabled: Joi.boolean().optional().default(false),
   location: Joi.string().allow("", null).optional(),
+  service_key: Joi.string().optional(),
   user_id: Joi.number().allow(null).optional(),
   created_by: Joi.number().allow(null).optional(),
-}).options({ abortEarly: false });
+}).options({ abortEarly: false, stripUnknown: true });
 
 export const validateSyncApplication = (req, res, next) => {
   const { error } = syncApplicationSchema.validate(req.body, { abortEarly: false });
