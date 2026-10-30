@@ -17,10 +17,10 @@ class SidegigsJobSyncService {
    */
   async createJobInSidegigsBackend(jobData, hrJob, incomingHeaders = {}) {
     const url = `${getJobsBaseUrl()}/create`;
-    const serviceKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
+    const serviceKey = (process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key").trim();
 
     const payload = {
-      service_key: serviceKey || "sidegigs_hr_secret_key",
+      service_key: serviceKey,
       job_title: jobData.job_title,
       company: jobData.company,
       job_description: jobData.job_description,
@@ -82,10 +82,10 @@ class SidegigsJobSyncService {
    */
   async updateJobInSidegigsBackend(hrJob, updateData, incomingHeaders = {}) {
     const url = `${getJobsBaseUrl()}/update`;
-    const serviceKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
+    const serviceKey = (process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key").trim();
 
     const payload = {
-      service_key: serviceKey || "sidegigs_hr_secret_key",
+      service_key: serviceKey,
       hr_job_id: String(hrJob._id),
       ...(hrJob.sidegigs_key_id && { key_id: hrJob.sidegigs_key_id }),
       ...(updateData.job_title !== undefined && { job_title: updateData.job_title }),

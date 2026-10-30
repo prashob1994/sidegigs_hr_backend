@@ -5,11 +5,17 @@ import jwt from "jsonwebtoken";
  */
 const authenticateUser = async (req, res, next) => {
   // Allow inter-service communication between SideGigs Backend and SideGigs HR Backend
-  const expectedKey = process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key";
-  const authHeader = req.headers["authorization"] || req.headers["Authorization"] || "";
-  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+  const configuredKey = process.env.INTERNAL_SERVICE_KEY ? process.env.INTERNAL_SERVICE_KEY.trim() : null;
+  const allowedKeys = new Set([
+    "sidegigs_hr_secret_key",
+    "sidegigs_hr_backend",
+    ...(configuredKey ? [configuredKey] : []),
+  ]);
 
-  const serviceKey =
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"] || "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1]?.trim() : null;
+
+  const rawServiceKey =
     req.headers["x-service-key"] ||
     req.headers["x-internal-secret"] ||
     req.headers["x-api-key"] ||
@@ -17,7 +23,9 @@ const authenticateUser = async (req, res, next) => {
     req.query?.service_key ||
     req.body?.service_key;
 
-  if (serviceKey && serviceKey === expectedKey) {
+  const serviceKey = rawServiceKey ? String(rawServiceKey).trim() : null;
+
+  if (serviceKey && allowedKeys.has(serviceKey)) {
     req.user = {
       is_service: true,
       organisation: req.params.organisation || "sidegigs",
