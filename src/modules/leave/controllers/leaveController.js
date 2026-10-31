@@ -201,7 +201,7 @@ export const approveLeave = async (req, res) => {
     const { id } = req.body;
 
     const leave = await leaveRepository.findById(id);
-    if (!leave || leave.organisation !== organisation) {
+    if (!leave || !leave.organisation || (organisation && organisation !== "all" && leave.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Leave application not found in this organisation",
@@ -237,7 +237,7 @@ export const rejectLeave = async (req, res) => {
     const { id, rejectionReason } = req.body;
 
     const leave = await leaveRepository.findById(id);
-    if (!leave || leave.organisation !== organisation) {
+    if (!leave || !leave.organisation || (organisation && organisation !== "all" && leave.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Leave application not found in this organisation",
@@ -284,7 +284,7 @@ export const changeLeaveStatus = async (req, res) => {
     }
 
     const leave = await leaveRepository.findById(id);
-    if (!leave || leave.organisation !== organisation) {
+    if (!leave || !leave.organisation || (organisation && organisation !== "all" && leave.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Leave application not found in this organisation",

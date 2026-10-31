@@ -165,7 +165,7 @@ export const getEmployee = async (req, res) => {
     }
 
     const employee = await employeeRepository.findById(id);
-    if (!employee || employee.organisation !== organisation) {
+    if (!employee || !employee.organisation || (organisation && organisation !== "all" && employee.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Employee not found in this organisation",
@@ -201,7 +201,7 @@ export const updateEmployee = async (req, res) => {
     }
 
     const existing = await employeeRepository.findById(id);
-    if (!existing || existing.organisation !== organisation) {
+    if (!existing || !existing.organisation || (organisation && organisation !== "all" && existing.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Employee not found in this organisation",
@@ -243,7 +243,7 @@ export const deleteEmployee = async (req, res) => {
     }
 
     const existing = await employeeRepository.findById(id);
-    if (!existing || existing.organisation !== organisation) {
+    if (!existing || !existing.organisation || (organisation && organisation !== "all" && existing.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Employee not found in this organisation",

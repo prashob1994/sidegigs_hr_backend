@@ -191,12 +191,20 @@ export const listConversations = async (req, res) => {
 export const getConversationMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const organisation = req.params.organisation;
 
     const conversation = await chatRepository.findConversationById(conversationId);
     if (!conversation) {
       return res.status(404).json({
         status: false,
         message: "Conversation not found",
+      });
+    }
+
+    if (organisation && organisation !== "all" && conversation.organisation && conversation.organisation.toLowerCase() !== organisation.toLowerCase()) {
+      return res.status(404).json({
+        status: false,
+        message: "Conversation not found in this organisation",
       });
     }
 

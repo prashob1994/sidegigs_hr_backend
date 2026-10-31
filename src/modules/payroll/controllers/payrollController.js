@@ -66,7 +66,7 @@ export const downloadPayslip = async (req, res) => {
     const { id } = req.body;
 
     const payslip = await payrollRepository.findPayslipById(id);
-    if (!payslip || payslip.organisation !== organisation) {
+    if (!payslip || !payslip.organisation || (organisation && organisation !== "all" && payslip.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Payslip not found in this organisation",

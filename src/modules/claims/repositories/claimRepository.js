@@ -13,10 +13,14 @@ class ClaimRepository {
     return await Claim.findById(id);
   }
 
-  async updateStatus(id, status, rejectionReason = null) {
+  async updateStatus(id, status, rejectionReason = null, organisation = null) {
     const update = { status };
     if (rejectionReason) update.rejectionReason = rejectionReason;
-    return await Claim.findByIdAndUpdate(id, update, { new: true });
+    const query = { _id: id };
+    if (organisation && organisation !== "all") {
+      query.organisation = new RegExp(`^${organisation}$`, "i");
+    }
+    return await Claim.findOneAndUpdate(query, update, { new: true });
   }
 
   async getSummary(organisation) {

@@ -24,7 +24,7 @@ export const clockIn = async (req, res) => {
     }
 
     const employee = await Employee.findById(empId);
-    if (!employee || employee.organisation !== organisation) {
+    if (!employee || !employee.organisation || (organisation && organisation !== "all" && employee.organisation.toLowerCase() !== organisation.toLowerCase())) {
       return res.status(404).json({
         status: false,
         message: "Employee not found in this organisation",

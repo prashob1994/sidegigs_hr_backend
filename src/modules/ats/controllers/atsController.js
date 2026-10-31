@@ -323,6 +323,7 @@ export const createApplicant = async (req, res) => {
  */
 export const advanceToNextStage = async (req, res) => {
   try {
+    const organisation = req.params.organisation;
     const { id } = req.body;
 
     const applicant = await atsRepository.findApplicantById(id);
@@ -330,6 +331,13 @@ export const advanceToNextStage = async (req, res) => {
       return res.status(404).json({
         status: false,
         message: "Candidate applicant not found",
+      });
+    }
+
+    if (organisation && organisation !== "all" && applicant.organisation && applicant.organisation.toLowerCase() !== organisation.toLowerCase()) {
+      return res.status(404).json({
+        status: false,
+        message: "Candidate applicant not found in this organisation",
       });
     }
 
@@ -358,7 +366,24 @@ export const advanceToNextStage = async (req, res) => {
  */
 export const changeApplicantStage = async (req, res) => {
   try {
+    const organisation = req.params.organisation;
     const { id, stage } = req.body;
+
+    const applicant = await atsRepository.findApplicantById(id);
+    if (!applicant) {
+      return res.status(404).json({
+        status: false,
+        message: "Applicant not found",
+      });
+    }
+
+    if (organisation && organisation !== "all" && applicant.organisation && applicant.organisation.toLowerCase() !== organisation.toLowerCase()) {
+      return res.status(404).json({
+        status: false,
+        message: "Applicant not found in this organisation",
+      });
+    }
+
     const updated = await atsRepository.updateApplicantStage(id, stage);
     if (!updated) {
       return res.status(404).json({

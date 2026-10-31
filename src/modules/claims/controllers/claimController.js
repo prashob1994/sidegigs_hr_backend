@@ -105,12 +105,13 @@ export const createClaim = async (req, res) => {
 
 export const approveClaim = async (req, res) => {
   try {
+    const organisation = req.params.organisation;
     const { id } = req.body;
-    const updated = await claimRepository.updateStatus(id, "approved");
+    const updated = await claimRepository.updateStatus(id, "approved", null, organisation);
     if (!updated) {
       return res.status(404).json({
         status: false,
-        message: "Claim not found",
+        message: "Claim not found in this organisation",
       });
     }
 
@@ -130,12 +131,13 @@ export const approveClaim = async (req, res) => {
 
 export const rejectClaim = async (req, res) => {
   try {
+    const organisation = req.params.organisation;
     const { id, rejectionReason } = req.body;
-    const updated = await claimRepository.updateStatus(id, "rejected", rejectionReason);
+    const updated = await claimRepository.updateStatus(id, "rejected", rejectionReason, organisation);
     if (!updated) {
       return res.status(404).json({
         status: false,
-        message: "Claim not found",
+        message: "Claim not found in this organisation",
       });
     }
 

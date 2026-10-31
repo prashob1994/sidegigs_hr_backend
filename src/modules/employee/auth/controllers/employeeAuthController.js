@@ -32,8 +32,8 @@ export const employeeLogin = async (req, res) => {
       ],
     };
 
-    if (orgParam) {
-      query.organisation = orgParam;
+    if (orgParam && orgParam !== "all") {
+      query.organisation = new RegExp(`^${orgParam}$`, "i");
     }
 
     const employee = await Employee.findOne(query);

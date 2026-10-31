@@ -19,6 +19,9 @@ class ChatRepository {
     if (job_id) {
       query.job_id = Number(job_id);
     }
+    if (organisation && organisation !== "all") {
+      query.organisation = new RegExp(`^${organisation}$`, "i");
+    }
 
     let conversation = await Conversation.findOne(query);
 
