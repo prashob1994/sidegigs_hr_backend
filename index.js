@@ -4,7 +4,6 @@ import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import cors from "cors";
 import morgan from "morgan";
-import session from "express-session";
 import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -38,15 +37,6 @@ app.use(async (req, res, next) => {
   await connectDB();
   next();
 });
-
-// Express Session Configuration
-app.use(
-  session({
-    resave: false,
-    saveUninitialized: false,
-    secret: process.env.SESSION_SECRET || "sidgigs_hr_session_secret",
-  })
-);
 
 // Body Parser Middlewares
 app.use(bodyParser.json());
@@ -104,10 +94,30 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 
 // Only start TCP listener in local / non-Vercel environment
 if (!process.env.VERCEL) {
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`🚀 SidGigs HR Backend server running on port ${port}`);
     console.log(`📖 Swagger API Docs available at /api/documentation`);
   });
+
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`❌ Port ${port} is already in use by another process. Please free the port or change PORT in .env.`);
+    } else {
+      console.error(`❌ Server listener error: ${error.message}`);
+    }
+    process.exit(1);
+  });
 }
+
+// Graceful termination handling
+process.on("SIGINT", () => {
+  console.log("🛑 Received SIGINT signal — shutting down gracefully...");
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("🛑 Received SIGTERM signal — shutting down gracefully...");
+  process.exit(0);
+});
 
 export default app;
