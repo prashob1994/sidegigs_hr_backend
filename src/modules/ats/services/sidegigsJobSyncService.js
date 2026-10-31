@@ -67,9 +67,13 @@ class SidegigsJobSyncService {
       };
     } catch (error) {
       console.warn(`[SidegigsJobSyncService] Failed to create job in sidegigs_backend: ${error.message}`);
+      if (error.response?.data) {
+        console.warn(`[SidegigsJobSyncService] Backend response details:`, JSON.stringify(error.response.data));
+      }
       return {
         success: false,
         error: error.response?.data?.message || error.message,
+        details: error.response?.data?.errors || null,
         statusCode: error.response?.status || 500,
       };
     }
@@ -136,9 +140,13 @@ class SidegigsJobSyncService {
         return await this.createJobInSidegigsBackend(hrJob, hrJob, incomingHeaders);
       }
       console.warn(`[SidegigsJobSyncService] Failed to update job in sidegigs_backend: ${error.message}`);
+      if (error.response?.data) {
+        console.warn(`[SidegigsJobSyncService] Backend response details:`, JSON.stringify(error.response.data));
+      }
       return {
         success: false,
         error: error.response?.data?.message || error.message,
+        details: error.response?.data?.errors || null,
         statusCode: error.response?.status || 500,
       };
     }
