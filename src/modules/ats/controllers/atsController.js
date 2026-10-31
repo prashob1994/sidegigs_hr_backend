@@ -1,5 +1,7 @@
 import atsRepository from "../repositories/atsRepository.js";
 import Job from "../models/jobModel.js";
+import UserJob from "../models/userJobModel.js";
+import Applicant from "../models/applicantModel.js";
 import User from "../../auth/models/userModel.js";
 import sidegigsJobSyncService from "../services/sidegigsJobSyncService.js";
 
@@ -573,6 +575,7 @@ export const syncApplication = async (req, res) => {
     const {
       hr_job_id,
       job_key_id,
+      user_job_key_id,
       candidateName,
       email,
       phone,
@@ -625,6 +628,7 @@ export const syncApplication = async (req, res) => {
       phone: phone || "",
       resume: resume || null,
       created_by: hrJob ? hrJob.created_by : (created_by || 1),
+      sidegigs_key_id: user_job_key_id || null,
     });
 
     return res.status(201).json({
@@ -639,6 +643,156 @@ export const syncApplication = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Failed to synchronize job application",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Delete a job posting and sync deletion to sidegigs_backend
+ */
+export const deleteJob = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { _id, id, job_id, key_id } = req.body;
+    const lookupId = id || req.params.id;
+
+    const existingJob = await atsRepository.findExistingJob(
+      { _id, id: lookupId, job_id, key_id },
+      organisation
+    );
+
+    if (!existingJob) {
+      return res.status(404).json({
+        status: false,
+        message: "Job posting not found",
+      });
+    }
+
+    // Delete locally from HR backend
+    const deletedJob = await atsRepository.deleteJob(existingJob._id, organisation);
+
+    let syncResult = null;
+    // If not called from backend sync, notify sidegigs_backend
+    if (!req.headers["x-from-backend-sync"]) {
+      syncResult = await sidegigsJobSyncService.deleteJobInSidegigsBackend(
+        existingJob,
+        req.headers
+      );
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Job deleted successfully",
+      data: deletedJob || existingJob,
+      synced_backend_job: syncResult?.data || null,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to delete job posting",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Change candidate application / enquiry status (accepted, rejected, default pending)
+ * and sync status update to sidegigs_backend
+ */
+export const changeStatus = async (req, res) => {
+  try {
+    const organisation = req.params.organisation;
+    const { _id, id, job_id, key_id, stage } = req.body;
+    const status = req.body.status || "pending";
+    const lookupId = _id || id || job_id || key_id || req.params.id;
+
+    // 1. Find UserJob record
+    let userJob = await atsRepository.findUserJobByIdOrKey(lookupId);
+
+    // If not found as UserJob, check if lookupId was an Applicant ID
+    let applicant = null;
+    if (!userJob) {
+      applicant = await atsRepository.findApplicantById(lookupId);
+      if (applicant) {
+        const relatedJob = applicant.jobId ? await atsRepository.findJobById(applicant.jobId) : null;
+        if (relatedJob) {
+          userJob = await UserJob.findOne({
+            job_id: relatedJob.key_id,
+            name: applicant.candidateName,
+          });
+          if (!userJob) {
+            userJob = await UserJob.findOne({
+              job_id: relatedJob.key_id,
+            });
+          }
+        }
+      }
+    } else {
+      // Find corresponding applicant
+      const relatedJob = await atsRepository.findJobByIdOrKey(userJob.job_id);
+      if (relatedJob) {
+        applicant = await Applicant.findOne({
+          jobId: relatedJob._id,
+          $or: [
+            { candidateName: userJob.name },
+            { phone: userJob.phone },
+          ],
+        });
+      }
+    }
+
+    if (!userJob && !applicant) {
+      return res.status(404).json({
+        status: false,
+        message: "Job application / enquiry not found",
+      });
+    }
+
+    // 2. Update UserJob status locally
+    let updatedUserJob = null;
+    if (userJob) {
+      updatedUserJob = await atsRepository.updateUserJobStatus(userJob._id, status);
+    }
+
+    // 3. Update Applicant stage
+    let updatedApplicant = null;
+    if (applicant) {
+      let targetStage = stage;
+      if (!targetStage) {
+        if (status === "accepted") targetStage = "Hired";
+        else if (status === "rejected") targetStage = "Rejected";
+        else if (status === "pending") targetStage = "Applied";
+      }
+      if (targetStage) {
+        updatedApplicant = await atsRepository.updateApplicantStage(applicant._id, targetStage);
+      }
+    }
+
+    // 4. Sync to sidegigs_backend if not originating from backend sync
+    let syncResult = null;
+    if (!req.headers["x-from-backend-sync"] && (updatedUserJob || userJob)) {
+      syncResult = await sidegigsJobSyncService.changeStatusInSidegigsBackend(
+        updatedUserJob || userJob,
+        status,
+        req.headers
+      );
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: `Job status updated to ${status} successfully`,
+      data: {
+        userJob: updatedUserJob || userJob,
+        applicant: updatedApplicant || applicant,
+        status,
+      },
+      synced_backend: syncResult?.data || null,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to update job status",
       error: error.message,
     });
   }

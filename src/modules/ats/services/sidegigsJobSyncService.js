@@ -151,6 +151,98 @@ class SidegigsJobSyncService {
       };
     }
   }
+
+  /**
+   * Sync job deletion to sidegigs_backend /api/jobs/delete
+   * @param {Object} hrJob
+   * @param {Object} incomingHeaders
+   */
+  async deleteJobInSidegigsBackend(hrJob, incomingHeaders = {}) {
+    const url = `${getJobsBaseUrl()}/delete`;
+    const serviceKey = (process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key").trim();
+
+    const payload = {
+      service_key: serviceKey,
+      job_id: hrJob.sidegigs_key_id || hrJob.key_id || hrJob.job_id,
+      key_id: hrJob.sidegigs_key_id || hrJob.key_id,
+      hr_job_id: String(hrJob._id),
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "x-service-key": serviceKey,
+      "x-from-hr-sync": "true",
+      authorization: `Bearer ${serviceKey}`,
+      ...(incomingHeaders.authorization && {
+        "x-original-auth": incomingHeaders.authorization,
+      }),
+    };
+
+    try {
+      const response = await axios.post(url, payload, {
+        headers,
+        timeout: 10000,
+      });
+
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      };
+    } catch (error) {
+      console.warn(`[SidegigsJobSyncService] Failed to delete job in sidegigs_backend: ${error.message}`);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+        statusCode: error.response?.status || 500,
+      };
+    }
+  }
+
+  /**
+   * Sync candidate application status update to sidegigs_backend /api/jobs/change_status
+   * @param {Object} userJob
+   * @param {String} status
+   * @param {Object} incomingHeaders
+   */
+  async changeStatusInSidegigsBackend(userJob, status, incomingHeaders = {}) {
+    const url = `${getJobsBaseUrl()}/change_status`;
+    const serviceKey = (process.env.INTERNAL_SERVICE_KEY || "sidegigs_hr_secret_key").trim();
+
+    const payload = {
+      service_key: serviceKey,
+      job_id: userJob.sidegigs_key_id || userJob.key_id,
+      status,
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "x-service-key": serviceKey,
+      "x-from-hr-sync": "true",
+      authorization: `Bearer ${serviceKey}`,
+      ...(incomingHeaders.authorization && {
+        "x-original-auth": incomingHeaders.authorization,
+      }),
+    };
+
+    try {
+      const response = await axios.post(url, payload, {
+        headers,
+        timeout: 10000,
+      });
+
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+      };
+    } catch (error) {
+      console.warn(`[SidegigsJobSyncService] Failed to change status in sidegigs_backend: ${error.message}`);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+        statusCode: error.response?.status || 500,
+      };
+    }
+  }
 }
 
 export default new SidegigsJobSyncService();

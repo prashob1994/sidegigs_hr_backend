@@ -123,8 +123,90 @@ class AtsRepository {
     return await Job.findOneAndUpdate(query, data, { new: true });
   }
 
+  /**
+   * Delete a job by ID, key_id, or job_id, scoped to organisation
+   * @param {String|Number} id
+   * @param {String} organisation
+   */
+  async deleteJob(id, organisation = null) {
+    if (!id) return null;
+    const orgFilter = (organisation && organisation !== "all")
+      ? {
+          $or: [
+            { organisation: new RegExp(`^${organisation}$`, "i") },
+            {
+              $and: [
+                {
+                  $or: [
+                    { organisation: { $exists: false } },
+                    { organisation: null },
+                    { organisation: "" },
+                  ],
+                },
+                { company: new RegExp(`^${organisation}$`, "i") },
+              ],
+            },
+          ],
+        }
+      : {};
+
+    let query = { ...orgFilter };
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else if (!isNaN(Number(id))) {
+      query.key_id = Number(id);
+    } else {
+      query.job_id = String(id);
+    }
+
+    const deleted = await Job.findOneAndDelete(query);
+    if (deleted) {
+      // Also clean up UserJob entries for this job
+      await UserJob.deleteMany({ job_id: deleted.key_id });
+      // And clean up applicants linked to this job
+      await Applicant.deleteMany({ jobId: deleted._id });
+    }
+    return deleted;
+  }
+
   async findApplicantById(id) {
     return await Applicant.findById(id);
+  }
+
+  /**
+   * Find a UserJob by MongoDB _id or numeric key_id
+   * @param {String|Number} id
+   */
+  async findUserJobByIdOrKey(id) {
+    if (!id) return null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      const uJob = await UserJob.findById(id);
+      if (uJob) return uJob;
+    }
+    const num = Number(id);
+    if (!isNaN(num)) {
+      const uJob = await UserJob.findOne({ key_id: num });
+      if (uJob) return uJob;
+    }
+    return null;
+  }
+
+  /**
+   * Update UserJob status ("accepted", "rejected", "pending")
+   * @param {String|Number} id
+   * @param {String} status
+   */
+  async updateUserJobStatus(id, status) {
+    if (!id) return null;
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query = { _id: id };
+    } else if (!isNaN(Number(id))) {
+      query = { key_id: Number(id) };
+    } else {
+      return null;
+    }
+    return await UserJob.findOneAndUpdate(query, { status }, { new: true });
   }
 
   async findApplicantsByOrganisation(organisation, filter = {}) {

@@ -64,6 +64,10 @@ const userJobSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    sidegigs_key_id: {
+      type: Number,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -3,20 +3,24 @@ import {
   listJobs,
   createJob,
   updateJob,
+  deleteJob,
   listApplicants,
   createApplicant,
   advanceToNextStage,
   changeApplicantStage,
   listManagerByStatus,
+  changeStatus,
   syncApplication,
 } from "../controllers/atsController.js";
 import {
   validateCreateJob,
   validateUpdateJob,
+  validateDeleteJob,
   validateCreateApplicant,
   validateApplicantAction,
   validateChangeStage,
   validateManagerEnquiry,
+  validateChangeStatus,
   validateSyncApplication,
 } from "../requests/atsRequest.js";
 import authenticateUser from "../../../middlewares/authenticateUser.js";
@@ -458,5 +462,100 @@ atsRouter.post("/jobs/manager_enquiry", validateManagerEnquiry, listManagerBySta
  */
 atsRouter.post("/applications/sync", validateSyncApplication, syncApplication);
 atsRouter.post("/sync-application", validateSyncApplication, syncApplication);
+
+/**
+ * @swagger
+ * /api/{organisation}/ats/jobs/delete:
+ *   post:
+ *     summary: Delete a job posting and sync deletion with sidegigs_backend
+ *     tags: [ATS Recruitment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 example: "64e0a1b2c3d4e5f678901234"
+ *               job_id:
+ *                 type: string
+ *                 example: "JOB-102948"
+ *               key_id:
+ *                 type: number
+ *                 example: 101
+ *     responses:
+ *       200:
+ *         description: Job deleted successfully
+ *       404:
+ *         description: Job not found
+ *       500:
+ *         description: Internal server error
+ */
+atsRouter.post("/jobs/delete", validateDeleteJob, deleteJob);
+atsRouter.delete("/jobs/delete", validateDeleteJob, deleteJob);
+atsRouter.delete("/jobs/:id", validateDeleteJob, deleteJob);
+
+/**
+ * @swagger
+ * /api/{organisation}/ats/jobs/change_status:
+ *   post:
+ *     summary: Change application status (accepted, rejected, default pending) and sync to sidegigs_backend
+ *     tags: [ATS Recruitment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organisation
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "sidegigs"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: Application UserJob key_id or Mongo _id
+ *                 example: 101
+ *               job_id:
+ *                 type: number
+ *                 description: UserJob key_id
+ *                 example: 101
+ *               status:
+ *                 type: string
+ *                 enum: [accepted, rejected, pending]
+ *                 default: pending
+ *                 example: "accepted"
+ *               stage:
+ *                 type: string
+ *                 enum: [Applied, Screening, Interview, Offered, Hired, Rejected]
+ *                 example: "Hired"
+ *     responses:
+ *       200:
+ *         description: Job status updated successfully
+ *       404:
+ *         description: Job application not found
+ *       500:
+ *         description: Internal server error
+ */
+atsRouter.post("/jobs/change_status", validateChangeStatus, changeStatus);
+atsRouter.post("/jobs/change-status", validateChangeStatus, changeStatus);
+atsRouter.post("/enquiries/change_status", validateChangeStatus, changeStatus);
+atsRouter.post("/enquiries/change-status", validateChangeStatus, changeStatus);
 
 export default atsRouter;

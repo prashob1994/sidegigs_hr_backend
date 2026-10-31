@@ -192,6 +192,7 @@ export const validateUpdateJob = (req, res, next) => {
 export const syncApplicationSchema = Joi.object({
   hr_job_id: Joi.alternatives().try(Joi.string(), Joi.number()).allow("", null).optional(),
   job_key_id: Joi.number().allow(null).optional(),
+  user_job_key_id: Joi.number().allow(null).optional(),
   job_title: Joi.string().allow("", null).optional(),
   company: Joi.string().allow("", null).optional(),
   candidateName: Joi.string().required().messages(joiCustomMessages).label("Candidate Name"),
@@ -210,6 +211,67 @@ export const syncApplicationSchema = Joi.object({
 
 export const validateSyncApplication = (req, res, next) => {
   const { error } = syncApplicationSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(422).json({
+      status: false,
+      message: "Validation Error",
+      errors: error.details.map((err) => err.message),
+    });
+  }
+  next();
+};
+
+export const deleteJobSchema = Joi.object({
+  _id: Joi.any().optional().messages(joiCustomMessages).label("Mongo ID"),
+  id: Joi.alternatives().try(Joi.string(), Joi.number()).optional().messages(joiCustomMessages).label("Job ID"),
+  job_id: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Job String ID"),
+  key_id: Joi.number().optional().messages(joiCustomMessages).label("Job Key ID"),
+  service_key: Joi.string().optional(),
+})
+  .or("_id", "id", "job_id", "key_id")
+  .options({ abortEarly: false, stripUnknown: true });
+
+export const validateDeleteJob = (req, res, next) => {
+  if (req.params.id && !req.body.id && !req.body._id && !req.body.job_id && !req.body.key_id) {
+    req.body.id = req.params.id;
+  }
+  const { error } = deleteJobSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(422).json({
+      status: false,
+      message: "Validation Error",
+      errors: error.details.map((err) => err.message),
+    });
+  }
+  next();
+};
+
+export const changeStatusSchema = Joi.object({
+  _id: Joi.any().optional().messages(joiCustomMessages).label("Mongo ID"),
+  id: Joi.alternatives().try(Joi.string(), Joi.number()).optional().messages(joiCustomMessages).label("Application / UserJob ID"),
+  job_id: Joi.alternatives().try(Joi.string(), Joi.number()).optional().messages(joiCustomMessages).label("UserJob Key ID"),
+  key_id: Joi.number().optional().messages(joiCustomMessages).label("UserJob Key ID"),
+  status: Joi.string()
+    .valid("accepted", "rejected", "pending")
+    .default("pending")
+    .optional()
+    .messages(joiCustomMessages)
+    .label("Status"),
+  stage: Joi.string()
+    .valid("Applied", "Screening", "Interview", "Offered", "Hired", "Rejected")
+    .optional()
+    .messages(joiCustomMessages)
+    .label("Pipeline Stage"),
+  service_key: Joi.string().optional(),
+})
+  .or("_id", "id", "job_id", "key_id")
+  .options({ abortEarly: false, stripUnknown: true });
+
+export const validateChangeStatus = (req, res, next) => {
+  if (req.params.id && !req.body.id && !req.body._id && !req.body.job_id && !req.body.key_id) {
+    req.body.id = req.params.id;
+  }
+  const { error } = changeStatusSchema.validate(req.body, { abortEarly: false });
   if (error) {
     return res.status(422).json({
       status: false,
