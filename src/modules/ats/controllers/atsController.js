@@ -118,7 +118,7 @@ export const createJob = async (req, res) => {
       id: req.body.id,
       job_id: req.body.job_id,
       key_id: req.body.key_id,
-    });
+    }, organisation);
 
     if (existingJob) {
       // Update existing job instead of creating a duplicate job
@@ -386,6 +386,7 @@ export const changeApplicantStage = async (req, res) => {
  */
 export const listManagerByStatus = async (req, res) => {
   try {
+    const organisation = req.params.organisation;
     const filter = {};
     if (req.user && req.user.key_id) {
       filter.created_by = req.user.key_id;
@@ -410,7 +411,29 @@ export const listManagerByStatus = async (req, res) => {
     const jobIds = listjob.map((job) => job.job_id);
     const userIds = listjob.map((user) => user.user_id);
 
-    const jobs = await Job.find({ key_id: { $in: jobIds } });
+    const jobQuery = { key_id: { $in: jobIds } };
+    if (organisation && organisation !== "all") {
+      const orgRegex = new RegExp(`^${organisation}$`, "i");
+      jobQuery.$or = [
+        { organisation: orgRegex },
+        {
+          $and: [
+            {
+              $or: [
+                { organisation: { $exists: false } },
+                { organisation: null },
+                { organisation: "" },
+              ],
+            },
+            { company: orgRegex },
+          ],
+        },
+      ];
+    }
+    const jobs = await Job.find(jobQuery);
+    const allowedJobIds = new Set(jobs.map((job) => job.key_id));
+    const filteredUserJobs = listjob.filter((userJob) => allowedJobIds.has(userJob.job_id));
+
     const users = await User.find({ key_id: { $in: userIds } }).select("-password");
 
     const userMap = Object.fromEntries(
@@ -420,7 +443,7 @@ export const listManagerByStatus = async (req, res) => {
       jobs.map((job) => [job.key_id || job._id, job])
     );
 
-    const enrichedUserJobs = listjob.map((userJob) => {
+    const enrichedUserJobs = filteredUserJobs.map((userJob) => {
       const uObj = userJob.toObject ? userJob.toObject() : userJob;
       return {
         ...uObj,
@@ -451,7 +474,7 @@ export const updateJob = async (req, res) => {
     const organisation = req.params.organisation;
     const { _id, id, job_id, key_id, location, start_date, end_date, ...restFields } = req.body;
 
-    const existingJob = await atsRepository.findExistingJob({ _id, id, job_id, key_id });
+    const existingJob = await atsRepository.findExistingJob({ _id, id, job_id, key_id }, organisation);
 
     if (!existingJob) {
       return res.status(404).json({
@@ -549,8 +572,9 @@ export const syncApplication = async (req, res) => {
     }
 
     // 1. Create candidate in ATS Applicant pipeline (for ATS Applicants Kanban / List)
+    const targetOrganisation = hrJob?.organisation || organisation || "sidegigs";
     const applicant = await atsRepository.createApplicant({
-      organisation,
+      organisation: targetOrganisation,
       jobId: hrJob ? hrJob._id : null,
       candidateName: candidateName || "Applicant",
       email: email || null,

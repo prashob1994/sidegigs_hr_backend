@@ -8,10 +8,21 @@ class AtsRepository {
   async findJobsByOrganisation(organisation, filter = {}) {
     const query = { ...filter };
     if (organisation && organisation !== "all") {
+      const orgRegex = new RegExp(`^${organisation}$`, "i");
       query.$or = [
-        { organisation: new RegExp(`^${organisation}$`, "i") },
-        { company: new RegExp(organisation, "i") },
-        { company: { $exists: true } },
+        { organisation: orgRegex },
+        {
+          $and: [
+            {
+              $or: [
+                { organisation: { $exists: false } },
+                { organisation: null },
+                { organisation: "" },
+              ],
+            },
+            { company: orgRegex },
+          ],
+        },
       ];
     }
     return await Job.find(query).sort({ createdAt: -1 });
@@ -26,27 +37,52 @@ class AtsRepository {
   }
 
   /**
-   * Find existing job by _id, id, job_id, or key_id
+   * Find existing job by _id, id, job_id, or key_id, optionally scoped to organisation
    * @param {Object} params - { _id, id, job_id, key_id }
+   * @param {String} organisation
    */
-  async findExistingJob(params = {}) {
+  async findExistingJob(params = {}, organisation = null) {
     const { _id, id, job_id, key_id } = params;
+    const orgFilter = (organisation && organisation !== "all")
+      ? {
+          $or: [
+            { organisation: new RegExp(`^${organisation}$`, "i") },
+            {
+              $and: [
+                {
+                  $or: [
+                    { organisation: { $exists: false } },
+                    { organisation: null },
+                    { organisation: "" },
+                  ],
+                },
+                { company: new RegExp(`^${organisation}$`, "i") },
+              ],
+            },
+          ],
+        }
+      : {};
+
     const lookupId = _id || id;
     if (lookupId && mongoose.Types.ObjectId.isValid(lookupId)) {
-      const job = await Job.findById(lookupId);
+      const job = await Job.findOne({ _id: lookupId, ...orgFilter });
       if (job) return job;
     }
     if (job_id) {
-      const job = await Job.findOne({ job_id: String(job_id) });
+      const job = await Job.findOne({ job_id: String(job_id), ...orgFilter });
       if (job) return job;
     }
     if (key_id !== undefined && key_id !== null && !isNaN(Number(key_id))) {
-      const job = await Job.findOne({ key_id: Number(key_id) });
+      const job = await Job.findOne({ key_id: Number(key_id), ...orgFilter });
       if (job) return job;
     }
     if (lookupId) {
       const job = await this.findJobByIdOrKey(lookupId);
-      if (job) return job;
+      if (job) {
+        if (!organisation || organisation === "all" || !job.organisation || job.organisation.toLowerCase() === organisation.toLowerCase()) {
+          return job;
+        }
+      }
     }
     return null;
   }
@@ -92,8 +128,12 @@ class AtsRepository {
   }
 
   async findApplicantsByOrganisation(organisation, filter = {}) {
-    return await Applicant.find({ organisation, ...filter })
-      .populate("jobId", "job_title company category")
+    const query = { ...filter };
+    if (organisation && organisation !== "all") {
+      query.organisation = new RegExp(`^${organisation}$`, "i");
+    }
+    return await Applicant.find(query)
+      .populate("jobId", "job_title company category organisation")
       .sort({ createdAt: -1 });
   }
 
@@ -127,9 +167,35 @@ class AtsRepository {
   }
 
   async getCounts(organisation) {
-    const totalJobs = await Job.countDocuments({ status: "open" });
-    const totalApplicants = await Applicant.countDocuments({ organisation });
-    const inInterview = await Applicant.countDocuments({ organisation, stage: "Interview" });
+    const jobFilter = { status: "open" };
+    const applicantFilter = {};
+
+    if (organisation && organisation !== "all") {
+      const orgRegex = new RegExp(`^${organisation}$`, "i");
+      jobFilter.$or = [
+        { organisation: orgRegex },
+        {
+          $and: [
+            {
+              $or: [
+                { organisation: { $exists: false } },
+                { organisation: null },
+                { organisation: "" },
+              ],
+            },
+            { company: orgRegex },
+          ],
+        },
+      ];
+      applicantFilter.organisation = orgRegex;
+    }
+
+    const totalJobs = await Job.countDocuments(jobFilter);
+    const totalApplicants = await Applicant.countDocuments(applicantFilter);
+    const inInterview = await Applicant.countDocuments({
+      ...applicantFilter,
+      stage: "Interview",
+    });
     return { totalJobs, totalApplicants, inInterview };
   }
 }

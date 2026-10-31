@@ -23,6 +23,7 @@ class SidegigsJobSyncService {
       service_key: serviceKey,
       job_title: jobData.job_title,
       company: jobData.company,
+      organisation: hrJob.organisation || jobData.organisation || "sidegigs",
       job_description: jobData.job_description,
       payment: jobData.payment,
       payment_type: jobData.payment_type,
@@ -87,6 +88,7 @@ class SidegigsJobSyncService {
     const payload = {
       service_key: serviceKey,
       hr_job_id: String(hrJob._id),
+      organisation: hrJob.organisation || "sidegigs",
       ...(hrJob.sidegigs_key_id && { key_id: hrJob.sidegigs_key_id }),
       ...(updateData.job_title !== undefined && { job_title: updateData.job_title }),
       ...(updateData.company !== undefined && { company: updateData.company }),
