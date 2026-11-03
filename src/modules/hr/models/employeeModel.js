@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { hashPassword } from "../../../utils/bcryptPassword.js";
 
 const employeeSchema = new mongoose.Schema(
   {
@@ -15,6 +16,10 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       lowercase: true,
       trim: true,
+      default: null,
+    },
+    password: {
+      type: String,
       default: null,
     },
     phone: {
@@ -71,6 +76,15 @@ const employeeSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+employeeSchema.pre("save", async function (next) {
+  if (this.isModified("password") && this.password) {
+    if (!this.password.startsWith("$2a$") && !this.password.startsWith("$2b$")) {
+      this.password = await hashPassword(this.password);
+    }
+  }
+  next();
+});
 
 const Employee = mongoose.model("Employee", employeeSchema);
 

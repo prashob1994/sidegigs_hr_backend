@@ -14,7 +14,8 @@ export const createEmployeeSchema = Joi.object({
   reportsTo: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Reports To Manager ID"),
   workplaceType: Joi.string().valid("On-Site", "Remote", "Hybrid").optional().messages(joiCustomMessages).label("Workplace Type"),
   avatar: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Avatar"),
-});
+  password: Joi.string().allow("", null).optional().messages(joiCustomMessages).label("Password"),
+}).options({ abortEarly: false, stripUnknown: true });
 
 export const validateCreateEmployee = (req, res, next) => {
   const { error } = createEmployeeSchema.validate(req.body, { abortEarly: false });

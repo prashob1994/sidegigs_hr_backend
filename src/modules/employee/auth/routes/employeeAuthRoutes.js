@@ -1,5 +1,5 @@
 import express from "express";
-import { employeeLogin } from "../controllers/employeeAuthController.js";
+import { employeeLogin, changeEmployeePassword } from "../controllers/employeeAuthController.js";
 
 const employeeAuthRouter = express.Router({ mergeParams: true });
 
@@ -77,5 +77,7 @@ const employeeAuthRouter = express.Router({ mergeParams: true });
  *         description: Validation Error
  */
 employeeAuthRouter.post("/login", employeeLogin);
+employeeAuthRouter.post("/change-password", changeEmployeePassword);
+employeeAuthRouter.post("/set-password", changeEmployeePassword);
 
 export default employeeAuthRouter;

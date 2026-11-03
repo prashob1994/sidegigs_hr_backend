@@ -1,6 +1,7 @@
 import employeeRepository from "../repositories/employeeRepository.js";
 import { employeeResource, employeeListResource } from "../resources/employeeResource.js";
 import Employee from "../models/employeeModel.js";
+import { hashPassword } from "../../../utils/bcryptPassword.js";
 
 /**
  * List employees for organisation passed in URL path
@@ -119,6 +120,11 @@ export const addEmployee = async (req, res) => {
 
     const code = employeeCode || `EMP-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await hashPassword(password);
+    }
+
     const newEmployee = await employeeRepository.create({
       employeeCode: code,
       name,
@@ -132,7 +138,7 @@ export const addEmployee = async (req, res) => {
       reportsTo: reportsTo || null,
       workplaceType: workplaceType || "On-Site",
       avatar: avatar || null,
-      ...(password && { password }),
+      ...(hashedPassword && { password: hashedPassword }),
     });
 
     return res.status(201).json({
@@ -208,10 +214,16 @@ export const updateEmployee = async (req, res) => {
       });
     }
 
-    const updated = await employeeRepository.update(id, {
+    const updateData = {
       ...req.body,
       organisation,
-    });
+    };
+
+    if (req.body.password) {
+      updateData.password = await hashPassword(req.body.password);
+    }
+
+    const updated = await employeeRepository.update(id, updateData);
 
     return res.status(200).json({
       status: true,

@@ -2,6 +2,7 @@ import userRepository from "../repositories/userRepository.js";
 import { hashPassword, comparePassword } from "../../../utils/bcryptPassword.js";
 import generateToken from "../../../utils/generateToken.js";
 import { userResource } from "../resources/userResource.js";
+import { employeeResource } from "../../hr/resources/employeeResource.js";
 import sidegigsAuthService from "../../../services/sidegigsAuthService.js";
 import Employee from "../../hr/models/employeeModel.js";
 import User from "../models/userModel.js";
@@ -148,14 +149,73 @@ export const emailLogin = async (req, res) => {
       });
     }
 
-    const user = await userRepository.findByEmail(email.toLowerCase());
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await userRepository.findByEmail(cleanEmail);
+    let employee = null;
+
     if (!user) {
-      return res.status(401).json({
-        status: false,
-        message: "Invalid email or password",
+      employee = await Employee.findOne({ email: cleanEmail });
+      if (!employee) {
+        return res.status(401).json({
+          status: false,
+          message: "Invalid email or password",
+        });
+      }
+    }
+
+    // If logging in as an employee / worker
+    if (employee) {
+      if (employee.status === "inactive" || employee.status === "terminated") {
+        return res.status(403).json({
+          status: false,
+          message: "Your employee account has been deactivated or terminated. Please contact your administrator.",
+        });
+      }
+
+      if (!employee.password) {
+        return res.status(401).json({
+          status: false,
+          message: "No password configured for this employee account. Please contact your administrator.",
+        });
+      }
+
+      let isMatch = false;
+      if (employee.password.startsWith("$2a$") || employee.password.startsWith("$2b$")) {
+        isMatch = await comparePassword(password, employee.password);
+      } else {
+        isMatch = (password === employee.password);
+        if (isMatch) {
+          employee.password = await hashPassword(password);
+          await employee.save();
+        }
+      }
+
+      if (!isMatch) {
+        return res.status(401).json({
+          status: false,
+          message: "Invalid email or password",
+        });
+      }
+
+      const token = generateToken(employee._id);
+      const formattedEmployee = employeeResource(employee);
+      const selectedOrg = organisation || formattedEmployee.organisation || "sidegigs";
+
+      return res.status(200).json({
+        status: true,
+        message: "Login successful",
+        data: {
+          user: formattedEmployee,
+          employee: formattedEmployee,
+          organisation: selectedOrg,
+          token,
+          user_type: "worker",
+          userType: "worker",
+        },
       });
     }
 
+    // Owner / HR Admin Login
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -175,6 +235,8 @@ export const emailLogin = async (req, res) => {
         user: formattedUser,
         organisation: selectedOrg,
         token,
+        user_type: "owner",
+        userType: "owner",
       },
     });
   } catch (error) {
