@@ -87,6 +87,14 @@ const userSchema = new mongoose.Schema(
       enum: ["active", "inactive", "suspended"],
       default: "active",
     },
+    is_verified: {
+      type: Boolean,
+      default: false,
+    },
+    verified_detail: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -1,4 +1,5 @@
 import authRouter from "../modules/auth/routes/authRoutes.js";
+import { updateVerification } from "../modules/auth/controllers/authController.js";
 import employeeRouter from "../modules/hr/routes/hrRoutes.js";
 import employeeAuthRouter from "../modules/employee/auth/routes/employeeAuthRoutes.js";
 import leaveRouter from "../modules/leave/routes/leaveRoutes.js";
@@ -12,6 +13,10 @@ import chatRouter from "../modules/chat/routes/chatRoutes.js";
 const configureRoutes = (app) => {
   // Remote HR Authentication Proxy Routes (/api/auth/*)
   app.use("/api/auth", authRouter);
+
+  // Direct Verification Routes (/api/verification & /api/user/verification)
+  app.post("/api/verification", updateVerification);
+  app.post("/api/user/verification", updateVerification);
 
   // Dedicated Employee Auth Route (/api/employee/auth/login)
   app.use("/api/employee/auth", employeeAuthRouter);

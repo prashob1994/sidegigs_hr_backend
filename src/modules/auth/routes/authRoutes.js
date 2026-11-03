@@ -5,8 +5,10 @@ import {
   verifyToken,
   emailLogin,
   createHrUser,
+  updateVerification,
 } from "../controllers/authController.js";
 import { validateRegister } from "../requests/registerRequest.js";
+import { validateVerification } from "../requests/verificationRequest.js";
 
 const router = express.Router();
 
@@ -293,5 +295,72 @@ router.post("/verify-token", verifyToken);
  */
 router.post("/login", emailLogin);
 router.post("/email-login", emailLogin);
+
+/**
+ * @swagger
+ * /api/auth/verification:
+ *   post:
+ *     summary: Update HR user verification status (is_verified) and detail (verified_detail)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: User ID (optional if Bearer token is provided)
+ *                 example: "64e0a1b2c3d4e5f678901234"
+ *               email:
+ *                 type: string
+ *                 description: User email (optional if Bearer token is provided)
+ *                 example: "info@gmail.com"
+ *               is_verified:
+ *                 type: boolean
+ *                 description: Verification status
+ *                 example: true
+ *               is_verifed:
+ *                 type: boolean
+ *                 description: Alias for is_verified
+ *                 example: true
+ *               verified_detail:
+ *                 oneOf:
+ *                   - type: string
+ *                     example: "Aadhaar verified successfully"
+ *                   - type: object
+ *                     example: { "method": "aadhaar", "verified_at": "2026-11-03T18:00:00Z" }
+ *     responses:
+ *       200:
+ *         description: Verification status updated successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ *
+ * /api/auth/verify:
+ *   post:
+ *     summary: Update HR user verification status (alias for /verification)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               is_verified:
+ *                 type: boolean
+ *                 example: true
+ *               verified_detail:
+ *                 type: string
+ *                 example: "Aadhaar verified successfully"
+ *     responses:
+ *       200:
+ *         description: Verification status updated successfully
+ */
+router.post("/verification", validateVerification, updateVerification);
+router.post("/verify", validateVerification, updateVerification);
 
 export default router;

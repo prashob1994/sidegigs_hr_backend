@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import userRepository from "../repositories/userRepository.js";
 import { hashPassword, comparePassword } from "../../../utils/bcryptPassword.js";
 import generateToken from "../../../utils/generateToken.js";
@@ -316,6 +317,8 @@ export const createHrUser = async (req, res) => {
       organisation: organisation || business_name || "sidegigs",
       role: role || "hr",
       status: "active",
+      is_verified: req.body.is_verified !== undefined ? Boolean(req.body.is_verified) : (req.body.is_verifed !== undefined ? Boolean(req.body.is_verifed) : false),
+      verified_detail: req.body.verified_detail !== undefined ? req.body.verified_detail : null,
     };
 
     const newUser = await userRepository.create(userData);
@@ -335,6 +338,141 @@ export const createHrUser = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Failed to create HR user",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Update HR user verification status and detail
+ * Sets is_verified and verified_detail (can store text or JSON)
+ */
+export const updateVerification = async (req, res) => {
+  try {
+    const {
+      id,
+      userId,
+      user_id,
+      email,
+      verified_detail,
+      verifiedDetail,
+    } = req.body;
+
+    // Decode bearer token if not already decoded by middleware
+    if (!req.user && req.headers?.authorization?.startsWith("Bearer ")) {
+      try {
+        const token = req.headers.authorization.split(" ")[1];
+        const secret = process.env.JWT_SECRET || "sidgigs_hr_jwt_secret_key_change_in_production";
+        const decoded = jwt.verify(token, secret);
+        if (decoded) req.user = decoded;
+      } catch {
+        // Fall back to body identifiers
+      }
+    }
+
+    // Support both spellings: is_verified and is_verifed (per user prompt)
+    const rawVerified =
+      req.body.is_verified !== undefined
+        ? req.body.is_verified
+        : req.body.is_verifed;
+
+    let is_verified = false;
+    if (typeof rawVerified === "boolean") {
+      is_verified = rawVerified;
+    } else if (typeof rawVerified === "string") {
+      is_verified = rawVerified.toLowerCase() === "true" || rawVerified === "1";
+    } else if (typeof rawVerified === "number") {
+      is_verified = rawVerified === 1;
+    } else if (rawVerified === undefined) {
+      is_verified = true;
+    }
+
+    // Support text or JSON in verified_detail
+    let detail = verified_detail !== undefined ? verified_detail : verifiedDetail;
+    if (typeof detail === "string") {
+      const trimmed = detail.trim();
+      if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+          detail = JSON.parse(trimmed);
+        } catch {
+          // Keep as text string if parsing fails
+        }
+      }
+    }
+
+    // Target user identification
+    const targetId = id || userId || user_id || req.user?.userId || req.user?.id || req.user?._id;
+    const targetEmail = email ? email.toLowerCase().trim() : (req.user?.email ? req.user.email.toLowerCase().trim() : null);
+
+    let user = null;
+    if (targetId) {
+      user = await User.findById(targetId);
+    }
+    if (!user && targetEmail) {
+      user = await User.findOne({ email: targetEmail });
+    }
+
+    // Fallback: If not found in User collection, check Employee as fallback
+    if (!user) {
+      let employee = null;
+      if (targetId) {
+        employee = await Employee.findById(targetId);
+      }
+      if (!employee && targetEmail) {
+        employee = await Employee.findOne({ email: targetEmail });
+      }
+
+      if (employee) {
+        employee.is_verified = is_verified;
+        if (detail !== undefined) {
+          employee.verified_detail = detail;
+        }
+        await employee.save();
+
+        return res.status(200).json({
+          status: true,
+          message: "Employee verification status updated successfully",
+          data: {
+            id: employee._id,
+            email: employee.email,
+            is_verified: employee.is_verified,
+            verified_detail: employee.verified_detail,
+            user_type: "worker",
+            employee: employeeResource(employee),
+          },
+        });
+      }
+
+      return res.status(404).json({
+        status: false,
+        message: "User not found. Please provide a valid user ID, email, or Bearer token.",
+      });
+    }
+
+    // Update User
+    user.is_verified = is_verified;
+    if (detail !== undefined) {
+      user.verified_detail = detail;
+    }
+    await user.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "HR user verification status updated successfully",
+      data: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        is_verified: user.is_verified,
+        verified_detail: user.verified_detail,
+        user_type: "owner",
+        user: userResource(user),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Failed to update verification status",
       error: error.message,
     });
   }

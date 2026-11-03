@@ -71,6 +71,14 @@ const employeeSchema = new mongoose.Schema(
       type: Number,
       default: 95,
     },
+    is_verified: {
+      type: Boolean,
+      default: false,
+    },
+    verified_detail: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,

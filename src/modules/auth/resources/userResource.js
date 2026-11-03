@@ -18,6 +18,8 @@ export const userResource = (user) => {
     organisation: user.organisation || user.business_name || "sidegigs",
     role: user.role || "hr",
     status: user.status || "active",
+    is_verified: user.is_verified !== undefined ? Boolean(user.is_verified) : false,
+    verified_detail: user.verified_detail !== undefined ? user.verified_detail : null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

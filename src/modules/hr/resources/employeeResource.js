@@ -25,6 +25,8 @@ export const employeeResource = (emp) => {
     workplaceType: emp.workplaceType || "On-Site",
     attendanceRate: `${attRate}% Attendance`,
     rawAttendanceRate: attRate,
+    is_verified: emp.is_verified !== undefined ? Boolean(emp.is_verified) : false,
+    verified_detail: emp.verified_detail !== undefined ? emp.verified_detail : null,
     createdAt: emp.createdAt,
   };
 };
