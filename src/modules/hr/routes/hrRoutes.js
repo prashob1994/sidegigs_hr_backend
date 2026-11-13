@@ -137,6 +137,9 @@ employeeRouter.post("/org-tree", getOrgTree);
  *                 type: string
  *                 enum: [active, inactive, on_leave, terminated]
  *                 example: "active"
+ *               password:
+ *                 type: string
+ *                 example: "SecurePass!2023"
  *     responses:
  *       201:
  *         description: Employee added successfully
